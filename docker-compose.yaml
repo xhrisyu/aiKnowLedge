@@ -1,0 +1,32 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: aiKnowLedge-qdrant
+    volumes:
+      - "./qdrant_storage:/qdrant/storage:z"
+    ports:
+      - "8502:6333"
+    networks:
+      - aiknowledge
+  mongo:
+    image: mongo:latest
+    container_name: aiKnowLedge-mongo
+    volumes:
+      - "./mongo_storage:/data/db:z"
+    ports:
+      - "8503:27017"
+    networks:
+      - aiknowledge
+
+  aiknowledge:
+    image: aiknowledge:latest
+    container_name: aiKnowLedge-streamlit
+    ports:
+      - "8501:8501"
+    networks:
+      - aiknowledge
+    privileged: true
+
+networks:
+  aiknowledge:
+    driver: bridge

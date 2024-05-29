@@ -1,0 +1,20 @@
+fastapi:
+  host: "127.0.0.1"
+  port: 8500
+
+openai:
+  api_key: ""
+
+qdrant:
+  storage_path: "./qdrant_storage"
+  host: "localhost"
+  port: 8502
+  url: "http://localhost:8502"
+  embedding_dim: 1536
+  collection_name:
+    general: "general"
+
+mongo:
+  uri: "mongodb://localhost:8503"
+  host: "localhost"
+  port: 8503
