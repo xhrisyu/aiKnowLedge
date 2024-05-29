@@ -55,6 +55,9 @@ with st.sidebar:
         default_index=0,
     )
 
+if not check_password():
+    st.stop()
+
 if selected_item == "主页":
     st.write("""
     # Under developing...🤓
@@ -65,8 +68,6 @@ if selected_item == "问答助手":
 
 if selected_item == "知识管理":
     kb_management.kb_management_page()
-    # st.divider()
-    # st.subheader("Under developing...🤓")
 
 if selected_item == "习题生成":
     quiz_generator.quiz_generator_page()
