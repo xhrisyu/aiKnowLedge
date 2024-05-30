@@ -8,7 +8,7 @@ from pymongo import MongoClient
 from bson.objectid import ObjectId
 
 from config import app_config
-from db import QAQdrantClient, ChatBotRedisClient
+from db import QAQdrantClient
 from llm import OpenAILLM
 from utils.vec_processor import TextVectorProcessor
 
@@ -21,7 +21,6 @@ async def lifespan(FastAPI_app: FastAPI):
     loop = asyncio.get_running_loop()
     mongo_config = app_config.get("mongo")
     qdrant_config = app_config.get("qdrant")
-    redis_config = app_config.get("redis")
     openai_config = app_config.get("openai")
 
     FastAPI_app.state.mongo_client = await loop.run_in_executor(
@@ -36,14 +35,6 @@ async def lifespan(FastAPI_app: FastAPI):
             collection_name=qdrant_config['collection_name']["general"],
             embedding_dim=qdrant_config["embedding_dim"]
         ))
-    FastAPI_app.state.redis_client = await loop.run_in_executor(
-        None,
-        lambda: ChatBotRedisClient(
-            host=redis_config["host"],
-            port=redis_config["port"],
-            password=redis_config["password"],
-            db=0,
-        ))
     FastAPI_app.state.llm_client = await loop.run_in_executor(
         None,
         lambda: OpenAILLM(
@@ -55,7 +46,6 @@ async def lifespan(FastAPI_app: FastAPI):
     finally:
         await loop.run_in_executor(None, FastAPI_app.state.mongo_client.close)
         await loop.run_in_executor(None, FastAPI_app.state.qdrant_client.close)
-        await loop.run_in_executor(None, FastAPI_app.state.redis_client.close)
 
 
 # ------------------------------------ API ------------------------------------

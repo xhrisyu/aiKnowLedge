@@ -5,6 +5,9 @@
 ARG PYTHON_VERSION=3.11.4
 FROM python:${PYTHON_VERSION}-slim as base
 
+# Enable debugging output
+RUN set -ex
+
 # Set environment variables to prevent Python from generating .pyc files
 ENV PYTHONDONTWRITEBYTECODE=1
 
@@ -37,5 +40,5 @@ EXPOSE 8501
 
 # Run the application
 CMD uvicorn server.api:app --host 127.0.0.1 --port 8500
-CMD streamlit run app.py --server.port=8501 --server.address=0.0.0.0
+CMD streamlit run app.py --server.address=0.0.0.0 --server.port=8501
 #CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
