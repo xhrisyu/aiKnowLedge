@@ -56,9 +56,13 @@ app = FastAPI(lifespan=lifespan)
 async def get_kb_data(database_name, collection_name):
     try:
         mongo_client = app.state.mongo_client
-        db_client = mongo_client[database_name]
-        collection = db_client[collection_name]
+        database = mongo_client[database_name]
+        collection = database[collection_name]
         cursor = collection.find().allow_disk_use(True)
+        data = list(cursor)
+        if not data:
+            return JSONResponse(content=[])
+
         # Form DataFrame
         data = [{k: v.decode('utf-8') if isinstance(v, bytes) else v for k, v in doc.items()} for doc in
                 cursor]  # Encode bytes to utf-8
@@ -165,6 +169,10 @@ async def search_vec_data(params: VecSearchParams):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post(APIPaths.QUIZ_GENERATE)
+async def generate_quiz(params: QuizGenerateParams):
+    pass
+
 # @app.post(APIPaths.QA)
 # async def qa(params: QAParams):
 #     # Get request parameters
@@ -205,6 +213,6 @@ if __name__ == '__main__':
     fastapi_config = app_config.get("fastapi")
     uvicorn.run("api:app", host=fastapi_config["host"], port=fastapi_config["port"], reload=True)
 
-# Command:
-# uvicorn main:app --host 0.0.0.0 --port 8500  # 生产
+# terminal command:
+# uvicorn server.api:app --host 127.0.0.1 --port 8500  # 生产
 # uvicorn server.api:app --host 127.0.0.1 --port 8500 --reload  # 测试

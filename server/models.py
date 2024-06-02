@@ -65,3 +65,12 @@ class QAParams(BaseModel):
     modelName: Optional[str]
     isStream: bool
 
+
+class QuizGenerateParams(BaseModel):
+    context: str
+    quizNum: int
+    quizType: str
+    temperature: float
+    modelName: Optional[str]
+    isStream: bool
+

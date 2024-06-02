@@ -55,13 +55,17 @@ with st.sidebar:
         default_index=0,
     )
 
-if not check_password():
-    st.stop()
+# if not check_password():
+#     st.stop()
 
 if selected_item == "主页":
     st.write("""
     # Under developing...🤓
     """)
+    st.caption('This is a string that explains something above.')
+    st.caption('A caption with _italics_ :blue[colors] and emojis :sunglasses:')
+    with st.echo():
+        st.write('This code will be printed')
 
 if selected_item == "问答助手":
     chatbot.chatbot_page()

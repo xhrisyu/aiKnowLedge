@@ -1,6 +1,6 @@
 from typing import Optional, List, Dict
 from qdrant_client import QdrantClient, models
-from qdrant_client.http.models import ScoredPoint, Filter, FieldCondition, MatchValue
+from qdrant_client.http.models import Filter, FieldCondition, MatchValue
 from qdrant_client.models import PointStruct, VectorParams, Distance
 
 
@@ -20,7 +20,6 @@ class QAQdrantClient(QdrantClient):
             )
             print(f"Qdrant Collection <{collection_name}> Created")
 
-        # Collection
         self._collection_name = collection_name
         self._embedding_dim = embedding_dim
 

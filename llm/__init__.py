@@ -1,2 +1,3 @@
-from .client import OpenAILLM, QianfanLLM
-from .generator import KnowledgeQuestionGenerator
+from .client import OpenAILLM
+from .generator import QuizGenerator
+from .prompt import Prompt

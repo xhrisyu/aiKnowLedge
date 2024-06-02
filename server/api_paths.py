@@ -22,3 +22,5 @@ class APIPaths:
     VEC_GET = "/vec/get"
     VEC_REMOVE = "/vec/remove"
     VEC_SEARCH = "/vec/search"
+
+    QUIZ_GENERATE = "/quiz/generate"
