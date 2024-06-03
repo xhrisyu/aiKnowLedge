@@ -39,15 +39,14 @@ COPY . .
 EXPOSE 8501
 
 # Copy the entrypoint script
-COPY entrypoint.sh /entrypoint.sh
+# COPY entrypoint.sh /entrypoint.sh
 
-# Make the entrypoint script executable
-RUN chmod +x /entrypoint.sh
-
-# Run the entrypoint script
-CMD ["/entrypoint.sh"]
+# Make the entrypoint script executable, Run the entrypoint script
+# RUN chmod +x /entrypoint.sh
+#CMD ["/entrypoint.sh"]
 
 # Run the application
 #CMD uvicorn server.api:app --host 127.0.0.1 --port 8500
 #CMD streamlit run app.py --server.address=0.0.0.0 --server.port=8501
 #CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+CMD ["sh", "-c", "streamlit run app.py --server.address=0.0.0.0 --server.port=8501 & uvicorn server.api:app --host 127.0.0.1 --port 8500"]

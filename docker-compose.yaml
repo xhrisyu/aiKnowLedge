@@ -6,6 +6,8 @@ services:
       - "./qdrant_storage:/qdrant/storage:z"
     ports:
       - "8502:6333"
+    networks:
+      - aiknowledge
 
   mongo:
     image: mongo:latest
@@ -14,10 +16,18 @@ services:
       - "./mongo_storage:/data/db:z"
     ports:
       - "8503:27017"
+    networks:
+      - aiknowledge
 
   aiknowledge:
     image: aiknowledge:latest
     container_name: aiknowledge-streamlit
     ports:
       - "8501:8501"
+    networks:
+      - aiknowledge
     privileged: true
+
+networks:
+  aiknowledge:
+    driver: bridge

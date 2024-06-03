@@ -4,7 +4,6 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from llm import OpenAILLM
 from utils.tools import get_file_name, get_file_extension, convert_escaped_chars_to_original_chars
-from utils.file_processor import PDFProcessor
 
 
 class TextVectorProcessor:
