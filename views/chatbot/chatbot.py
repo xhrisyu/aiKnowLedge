@@ -12,6 +12,7 @@ from config import app_config
 from views.constants import *
 from llm import OpenAILLM
 from db import QAQdrantClient
+from utils.tools import convert_chat_message_to_str
 
 
 @st.cache_resource
@@ -94,16 +95,13 @@ def chatbot_page():
                     time2 = time.time()
                     print(f"Retrieve documents time: {time2 - time1}")
 
-                    # Get chat history from st.session.state (exclude the first message and newly added user message)
-                    # chat_history = [message for message in st.session_state.messages][1:-1]
-                    # if not chat_history:
-                    #     print("chat history is empty")
-                    #     chat_history_text = ""
-                    # else:
-                    #     if len(chat_history) > 6:
-                    #         chat_history = chat_history[-6:]
-                    #     chat_history_text = get_chat_history_text(chat_history)
-                    # chat_history_text += f"用户: {user_input}\n"
+                    # Get chat history from st.session.state (exclude the newly added user message)
+                    chat_history = st.session_state.messages[:-1]
+                    chat_history_str = ""
+                    if chat_history:
+                        chat_history = chat_history[-CHAT_HISTORY_LEN:] if len(chat_history) > CHAT_HISTORY_LEN else chat_history
+                        chat_history_str = convert_chat_message_to_str(chat_history)
+                    chat_history_str += f"用户: {user_input}\n"
 
                     # Generate AI Response
                     print("Start to generate AI response...")
@@ -130,7 +128,7 @@ def chatbot_page():
 
             # Add to messages session
             st.session_state.messages.append({"role": "user", "content": user_input})
-            st.session_state.messages.append({"role": "ai", "content": ai_response})
+            st.session_state.messages.append({"role": "assistant", "content": ai_response})
 
     # Vertical divider
     # with gap:

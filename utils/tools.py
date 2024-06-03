@@ -1,6 +1,6 @@
 import os
 import re
-from typing import List
+from typing import List, Dict
 import numpy as np
 
 
@@ -11,12 +11,12 @@ def get_metadata_source_filename(source_name: str) -> str:
     return source_name
 
 
-def get_chat_history_text(chat_history: list) -> str:
+def convert_chat_message_to_str(chat_history: List[Dict]) -> str:
     chat_history_text = ""
-    for idx, message in enumerate(chat_history):
-        if idx % 2 == 0:
+    for message in chat_history:
+        if message['role'] == "user":
             chat_history_text += f"用户: {message['content']}\n"
-        else:
+        elif message['role'] == "ai" or message['role'] == "assistant":
             chat_history_text += f"AI: {message['content']}\n"
 
     return chat_history_text
