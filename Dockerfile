@@ -6,7 +6,7 @@ ARG PYTHON_VERSION=3.11.4
 FROM python:${PYTHON_VERSION}-slim as base
 
 # Enable debugging output
-RUN set -ex
+# RUN set -ex
 
 # Set environment variables to prevent Python from generating .pyc files
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -37,16 +37,14 @@ COPY . .
 
 # Expose the port the Streamlit app runs on
 EXPOSE 8501
-
-# Copy the entrypoint script
-# COPY entrypoint.sh /entrypoint.sh
+EXPOSE 8500
 
 # Make the entrypoint script executable, Run the entrypoint script
 # RUN chmod +x /entrypoint.sh
-#CMD ["/entrypoint.sh"]
+CMD ["bash", "entrypoint.sh"]
 
 # Run the application
 #CMD uvicorn server.api:app --host 127.0.0.1 --port 8500
 #CMD streamlit run app.py --server.address=0.0.0.0 --server.port=8501
 #CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
-CMD ["sh", "-c", "streamlit run app.py --server.address=0.0.0.0 --server.port=8501 & uvicorn server.api:app --host 127.0.0.1 --port 8500"]
+#CMD ["sh", "-c", "streamlit run app.py --server.address=0.0.0.0 --server.port=8501 & uvicorn server.api:app --host 127.0.0.1 --port 8500"]
