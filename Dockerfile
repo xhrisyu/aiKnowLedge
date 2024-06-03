@@ -35,10 +35,19 @@ RUN pip install --no-cache-dir -r requirements.txt --progress-bar off
 # Copy the rest of the application
 COPY . .
 
-# Expose the port the app runs on
+# Expose the port the Streamlit app runs on
 EXPOSE 8501
 
+# Copy the entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+
+# Make the entrypoint script executable
+RUN chmod +x /entrypoint.sh
+
+# Run the entrypoint script
+CMD ["/entrypoint.sh"]
+
 # Run the application
-CMD uvicorn server.api:app --host 127.0.0.1 --port 8500
-CMD streamlit run app.py --server.address=0.0.0.0 --server.port=8501
+#CMD uvicorn server.api:app --host 127.0.0.1 --port 8500
+#CMD streamlit run app.py --server.address=0.0.0.0 --server.port=8501
 #CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]

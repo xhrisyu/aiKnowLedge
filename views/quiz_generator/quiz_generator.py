@@ -31,7 +31,8 @@ def quiz_generator_page():
 a)内部来源(如知识产权、从经验获得的知识、从失败和成功项目汲取的经验和教训、获取和分享未成文的知识和经验，以及过程、产品和服务的改进结果);
 b)外部来源(如标准、学术交流、专业会议、从顾客或外部供方收集的知识)。"""
 
-    context = st.text_area(label="文本", value=for_test_context, placeholder="请输入文本段落", height=200)
+    # context = st.text_area(label="文本", value=for_test_context, placeholder="请输入文本段落", height=200)
+    context = st.text_area(label="文本", value="", placeholder="请输入文本段落", height=200)
     cols = st.columns(6)
     generate_btn = cols[0].button("生成题目", use_container_width=True)
     save_all_btn = cols[1].button("保存全部", use_container_width=True, disabled=True)

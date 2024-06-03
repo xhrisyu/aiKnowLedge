@@ -232,7 +232,7 @@ def kb_management_page():
                 text='按`回车`添加',
                 value=['\\n\\n', '\\n', '。'],
                 suggestions=[],
-                maxtags=8,
+                maxtags=6,
                 key='1')
 
         # Add uploaded file to KnowledgeBase
