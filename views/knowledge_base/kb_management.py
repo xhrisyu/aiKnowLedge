@@ -1,8 +1,7 @@
 import os
+import time
 from typing import Dict, Tuple, Literal, List
 import pandas as pd
-import datetime
-from io import StringIO
 from datetime import datetime
 import requests
 import streamlit as st
@@ -70,8 +69,7 @@ def kb_management_page():
         # process display data
         kb_dataframe_display = kb_dataframe.drop(columns=['_id'])
         kb_dataframe_display_column_order = [
-            "file_name", "file_extension", "chunk_size", "overlap_size", "separators", "in_vector_db",
-            "file_len", "location", "create_time"
+            "file_name", "file_extension", "chunk_size", "overlap_size", "separators", "in_vector_db", "location", "create_time"
         ]
         kb_dataframe_display = kb_dataframe_display[kb_dataframe_display_column_order]
         gb = config_aggrid(
@@ -84,7 +82,6 @@ def kb_management_page():
                 ("separators", "分隔符"): dict(cellRenderer=list_cell_renderer, headerName="分隔符"),
                 ("in_vector_db", "是否在向量库"): dict(cellRenderer=TF_cell_renderer, headerName="是否在向量库"),
                 ("create_time", "创建时间"): {},
-                ("file_len", "文档长度"): {},
                 ("location", "文件位置"): {},
             },
             selection_mode="single",
@@ -222,7 +219,6 @@ def kb_management_page():
     """
     Multiple file upload - under developing
     """
-
     # Single file upload
     with st.form("my-form", clear_on_submit=True):
         uploaded_file = st.file_uploader("上传知识文件", type=SUPPORTED_EXTS)
@@ -238,44 +234,33 @@ def kb_management_page():
                 suggestions=[],
                 maxtags=8,
                 key='1')
-        # Add uploaded file to KB
+
+        # Add uploaded file to KnowledgeBase
         submitted = st.form_submit_button("添加文件到知识库")
         if submitted:
             # Firstly check if file is uploaded
             if uploaded_file is None:
                 st.error("请先上传文件")
                 return
-
-            # Read file content
-            uploaded_file_str = ""
-            uploaded_file_bytes = uploaded_file.getvalue()  # read file as bytes
-            uploaded_file_name = uploaded_file.name
-            file_extension = get_file_extension(uploaded_file_name, upper=True, with_dot=False)
-
-            # Process different extensions of files [txt, csv, pdf, docx, ...]
-            if file_extension == 'TXT':
-                stringio = StringIO(uploaded_file_bytes.decode("utf-8"))  # To convert to a string based IO
-                string_data = stringio.read()  # To read file as string
-                uploaded_file_str = string_data
-            elif file_extension == 'CSV':
-                dataframe = pd.read_csv(uploaded_file)
-                uploaded_file_str = dataframe.to_string()
-            file_len = len(uploaded_file_str)
-
-            # Save file to local disk
-            local_doc_dir = os.path.join(os.getcwd(), "doc")  # os.getcwd() 当前工程绝对路径
-            local_uploaded_file_dir = os.path.join(os.getcwd(), "doc", "uploaded_file")
-            if not os.path.exists(local_doc_dir):
-                os.makedirs(local_doc_dir)
-            if not os.path.exists(local_uploaded_file_dir):
-                os.makedirs(local_uploaded_file_dir)
-            with open(f"{local_uploaded_file_dir}/{uploaded_file.name}", "wb") as f:
-                f.write(uploaded_file_bytes)
+            try:
+                # Read file and get metadata
+                uploaded_file_bytes = uploaded_file.getvalue()  # read file as bytes
+                uploaded_file_name = uploaded_file.name
+                file_extension = get_file_extension(uploaded_file_name, upper=True, with_dot=False)
+                # Create local directories
+                local_doc_dir = os.path.join(os.getcwd(), "doc")  # os.getcwd() 当前工程绝对路径
+                local_uploaded_file_dir = os.path.join(local_doc_dir, "uploaded_file")
+                if not os.path.exists(local_doc_dir):
+                    os.makedirs(local_doc_dir)
+                if not os.path.exists(local_uploaded_file_dir):
+                    os.makedirs(local_uploaded_file_dir)
+            except Exception as e:
+                st.error(f"文件处理时发生错误: {e}")
+                return
 
             # Add file metadata to MongoDB
             params_data = {
                 "file_name": uploaded_file.name,
-                "file_len": file_len,
                 "file_extension": file_extension,
                 "chunk_size": chunk_size,
                 "overlap_size": overlap_size,
@@ -292,8 +277,14 @@ def kb_management_page():
                     "data": params_data
                 }
             )  # json不是对应fastapi接口函数参数名, 而是request body的key
+
             if response.status_code == 200:
+                # Save file to local disk
+                with open(f"{local_uploaded_file_dir}/{uploaded_file.name}", "wb") as f:
+                    f.write(uploaded_file_bytes)
                 st.success("文件已添加到知识库", icon='🎉')
+                time.sleep(1.0)
+                st.rerun()  # Reload the page after adding
             else:
                 st.error(f"添加文件到知识库时发生错误. 状态码: {response.status_code}")
-            st.rerun()  # Reload the page after adding
+                return  # not use st.rerun() here, to hang up the error message

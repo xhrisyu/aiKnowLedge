@@ -1,9 +1,10 @@
 from uuid import uuid4
-from langchain_community.document_loaders import TextLoader, DirectoryLoader
+from langchain_community.document_loaders import TextLoader, DirectoryLoader, PyPDFium2Loader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from llm import OpenAILLM
-from .tools import get_file_name, get_file_extension, convert_escaped_chars_to_original_chars
+from utils.tools import get_file_name, get_file_extension, convert_escaped_chars_to_original_chars
+from utils.file_processor import PDFProcessor
 
 
 class TextVectorProcessor:
@@ -17,7 +18,9 @@ class TextVectorProcessor:
     def __init__(self,
                  document_id: str,
                  file_path: str,
-                 chunk_size: int, overlap_size: int, separators: list | None,
+                 chunk_size: int,
+                 overlap_size: int,
+                 separators: list | None,
                  embedding_client: OpenAILLM | None
                  ):
         self.document_id = document_id
@@ -30,10 +33,12 @@ class TextVectorProcessor:
 
     def process(self):
         # Load file by LangChain:
-        if self.file_extension == "txt":
+        if self.file_extension == "TXT":
             loader = TextLoader(self.file_path)
-        elif self.file_extension == "csv":
+        elif self.file_extension == "CSV":
             loader = TextLoader(self.file_path)
+        elif self.file_extension == "PDF":
+            loader = PyPDFium2Loader(self.file_path)
         else:  # "docx":
             loader = TextLoader(self.file_path)
         document = loader.load()
@@ -48,7 +53,11 @@ class TextVectorProcessor:
             chunk_overlap=self.overlap_size,
             separators=self.separators
         )
-        split_document = text_splitter.split_documents(document)  # structure: [Document(page_content="**chunk_1**", metadata={"source": "file_abs_path"}), ...]
+        split_document = text_splitter.split_documents(
+            document)  # structure: [Document(page_content="**chunk_1**", metadata={"source": "file_abs_path"}), ...]
+
+        from pprint import pprint
+        pprint(split_document)
 
         # Add metadata to each document, and reconstruct data to fit the format of Qdrant insertion
         vector_points = []
@@ -56,6 +65,7 @@ class TextVectorProcessor:
             vec_id = str(uuid4())  # Generate vector_id in Vector DB by uuid
             page_content = doc.page_content
             document_name = get_file_name(doc.metadata["source"])
+            page = doc.metadata.get('page')
             try:
                 vector = self.embedding_client.get_text_embedding(page_content)
             except Exception as e:
@@ -66,6 +76,7 @@ class TextVectorProcessor:
                 "document_name": document_name,
                 "source": doc.metadata["source"],
                 "chunk_id": idx + 1,
+                "page": page,
                 "page_content": page_content
             }
             vector_points.append({"vec_id": vec_id, "vector": vector, "payload": payload})
@@ -75,19 +86,25 @@ class TextVectorProcessor:
 
 # if __name__ == "__main__":
 #     # Example usage
-#     file_path = "/Users/yu/Projects/AIGC/aiknowledge/doc_temp/ZC-1-M-001 厂区温湿度管控规范（B）.txt"
+#     # file_path = "/Users/yu/Projects/AIGC/aiknowledge/doc/uploaded_file_temp/洛杉矶湖人.pdf"
+#     file_path = "/Users/yu/Projects/AIGC/aiknowledge/doc/uploaded_file_temp/NBA - 维基百科，自由的百科全书.pdf"
 #     file_extension = "txt"
-#     chunk_size = 100
-#     overlap_size = 20
+#     chunk_size = 200
+#     overlap_size = 50
 #     separators = ['\n\n', '\n', '。']
-#     # embedding_client = OpenAILLM()
+#
+#     from config import app_config
+#
+#     embedding_client = OpenAILLM(api_key=app_config.get("openai")["api_key"])
 #     processor = TextVectorProcessor(
 #         document_id="test_doc_id",
 #         file_path=file_path,
-#         file_extension=file_extension,
 #         chunk_size=chunk_size,
 #         overlap_size=overlap_size,
-#         separators=separators)
+#         separators=separators,
+#         embedding_client=embedding_client
+#     )
 #     processed_document = processor.process()
+#
 #     from pprint import pprint
 #     pprint(processed_document)

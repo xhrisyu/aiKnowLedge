@@ -16,12 +16,12 @@ from docx.table import _Cell, Table, _Row
 from docx.text.paragraph import Paragraph
 
 from langchain_community.document_loaders import PyPDFium2Loader
-from utils import get_file_path_list
+from utils.tools import get_file_path_list
 
 
 class PDFProcessor:
     @staticmethod
-    def pdf_to_txt(pdf_input_path: str, txt_output_path: str):
+    def pdf_to_txt(pdf_input_path: str, txt_output_path: str | None = None) -> str:
         # Using fitz
         with fitz.open(pdf_input_path) as pdf:
             text = ""
@@ -50,12 +50,12 @@ class PDFProcessor:
                 processed_lines.append(line)
 
         # Write the processed lines to the output file
-        with open(txt_output_path, 'w', encoding='utf-8') as file:
-            for line in processed_lines:
-                file.write(line + '\n')
+        if txt_output_path:
+            with open(txt_output_path, 'w', encoding='utf-8') as file:
+                for line in processed_lines:
+                    file.write(line + '\n')
 
-        # with open(txt_output_path, 'w', encoding='utf-8') as file:
-        #     file.write(text)
+        return "\n".join(processed_lines)
 
     @staticmethod
     def pdf_to_img_to_txt(pdf_input_path: str, txt_output_path: str):
@@ -197,7 +197,6 @@ class ExamPaperProcessor:
 
             with open(f"{output_directory_path}/{output_file_name}.json", "w") as json_file:
                 json.dump(json_data, json_file, ensure_ascii=False, indent=4)
-
 
 
 def remove_redundant_repetitions(s):

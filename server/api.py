@@ -60,12 +60,11 @@ async def get_kb_data(database_name, collection_name):
         collection = database[collection_name]
         cursor = collection.find().allow_disk_use(True)
         data = list(cursor)
-        if not data:
+        if not data or len(data) == 0:
             return JSONResponse(content=[])
 
         # Form DataFrame
-        data = [{k: v.decode('utf-8') if isinstance(v, bytes) else v for k, v in doc.items()} for doc in
-                cursor]  # Encode bytes to utf-8
+        # data = [{k: v.decode('utf-8') if isinstance(v, bytes) else v for k, v in doc.items()} for doc in cursor]  # Encode bytes to utf-8
         kb_dataframe = pd.DataFrame(data)
         kb_dataframe.fillna('', inplace=True)  # fill NaN with empty string
         kb_dataframe['_id'] = kb_dataframe['_id'].apply(lambda x: str(x))  # Convert `_id` object to string

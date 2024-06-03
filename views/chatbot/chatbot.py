@@ -73,9 +73,7 @@ def chatbot_page():
                 with st.spinner("思考中..."):
                     llm_client = get_llm_client()
                     qdrant_client = get_qdrant_client()
-
                     # Intention recognition
-
 
                     # Retrieve Documents
                     print("Start to retrieve documents...")
@@ -150,17 +148,15 @@ def chatbot_page():
 
     # Area 2(Right): Retriever Panel
     with col2.container(border=True, height=700):
-        st.write("召回文档片段")
         if "retrieved_docs" in st.session_state:
+            st.subheader("检索文档结果")
             for no, doc in enumerate(st.session_state.retrieved_docs):
                 chunk_id = doc["chunk_id"]
                 document_name = doc["document_name"]
                 page_content = doc["page_content"]
                 score = doc["score"]
-                st.subheader(f"召回文档 {no + 1}")
-                st.write(f"文档名称: {document_name}")
-                st.write(f"片段号: {chunk_id}")
-                st.write(f"文档片段: {page_content}")
-                st.write(f"匹配得分: {score}")
+                st.markdown(f"**来源{no + 1}**: **{document_name}** ***(chunk_id:{chunk_id})***")
+                st.markdown(f"{page_content}")
+                st.markdown(f":orange[相似度={score}]")
                 st.divider()
 

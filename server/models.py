@@ -4,7 +4,6 @@ from typing import List, Optional, Union
 
 class KBInsertItem(BaseModel):
     file_name: str
-    file_len: int
     file_extension: str
     chunk_size: int
     overlap_size: int
