@@ -1,12 +1,6 @@
-# syntax=docker/dockerfile:1
-# https://docs.docker.com/go/dockerfile-reference/
-
 # Use an official Python runtime as a parent image
 ARG PYTHON_VERSION=3.11.4
 FROM python:${PYTHON_VERSION}-slim as base
-
-# Enable debugging output
-# RUN set -ex
 
 # Set environment variables to prevent Python from generating .pyc files
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -33,15 +27,15 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt --progress-bar off
 
 # Copy the rest of the application
+COPY entrypoint.sh /aiknowledge/entrypoint.sh
 COPY . .
 
 # Expose the port the Streamlit app runs on
 EXPOSE 8501
-EXPOSE 8500
 
 # Make the entrypoint script executable, Run the entrypoint script
-# RUN chmod +x /entrypoint.sh
-CMD ["bash", "entrypoint.sh"]
+RUN chmod +x /aiknowledge/entrypoint.sh
+CMD ["bash", "/aiknowledge/entrypoint.sh"]
 
 # Run the application
 #CMD uvicorn server.api:app --host 127.0.0.1 --port 8500

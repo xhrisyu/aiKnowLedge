@@ -22,11 +22,13 @@ services:
   aiknowledge:
     image: aiknowledge:latest
     container_name: aiknowledge-streamlit
+    depends_on:
+      - qdrant
+      - mongo
     ports:
       - "8501:8501"
     networks:
       - aiknowledge
-    privileged: true
 
 networks:
   aiknowledge:
