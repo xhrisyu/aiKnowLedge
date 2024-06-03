@@ -85,7 +85,7 @@ def chatbot_page():
                         query_vector=embedded_user_question,
                         top_k=top_k,
                         sim_lower_bound=sim_threshold,
-                    )  # [{"chunk_id": 1, "document_name": "xxx", "page_content": "xxx", "score": 0.72}, ...]
+                    )  # [{"chunk_id": 1, "document_name": "xxx", "page_content": "xxx", "score": 0.72, page: 0}, ...]
                     st.session_state.retrieved_docs = retrieved_payloads
                     context = ""
                     for doc in st.session_state.retrieved_docs:
@@ -150,10 +150,11 @@ def chatbot_page():
             st.subheader("检索文档结果")
             for no, doc in enumerate(st.session_state.retrieved_docs):
                 chunk_id = doc["chunk_id"]
+                page = doc["page"]
                 document_name = doc["document_name"]
                 page_content = doc["page_content"]
                 score = doc["score"]
-                st.markdown(f"**来源{no + 1}**: **{document_name}** ***(chunk_id:{chunk_id})***")
+                st.markdown(f"**来源{no + 1}**: **{document_name}** ***(page:{page}, chunk_id:{chunk_id})***")
                 st.markdown(f"{page_content}")
                 st.markdown(f":orange[相似度={score}]")
                 st.divider()

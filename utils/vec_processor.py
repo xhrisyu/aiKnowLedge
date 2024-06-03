@@ -56,8 +56,8 @@ class TextVectorProcessor:
         split_document = text_splitter.split_documents(
             document)  # structure: [Document(page_content="**chunk_1**", metadata={"source": "file_abs_path"}), ...]
 
-        from pprint import pprint
-        pprint(split_document)
+        # from pprint import pprint
+        # pprint(split_document)
 
         # Add metadata to each document, and reconstruct data to fit the format of Qdrant insertion
         vector_points = []

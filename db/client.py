@@ -133,7 +133,8 @@ class QAQdrantClient(QdrantClient):
                 "chunk_id": point.payload['chunk_id'],
                 "document_name": point.payload['document_name'],
                 "page_content": point.payload['page_content'],
-                "score": point.score
+                "score": point.score,
+                "page": point.payload['page']
             }
             retrieved_infos.append(info)
         return retrieved_infos

@@ -162,7 +162,7 @@ async def search_vec_data(params: VecSearchParams):
             query_vector=embedded_user_question,
             top_k=top_k,
             sim_lower_bound=sim_threshold,
-        )  # [{"chunk_id": 1, "document_name": "xxx", "page_content": "xxx", "score": 0.72}, ...]
+        )  # [{"chunk_id": 1, "document_name": "xxx", "page_content": "xxx", "score": 0.72, "page": 0}, ...]
         return JSONResponse(content=retrieved_payloads)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -40,7 +40,7 @@ class QuizGenerator:
         )
         response_str = gpt_response.choices[0].message.content
         response_json = json.loads(response_str)  # {'1': '知识点1', '2': '知识点2', ...}
-        self.knowledge_points = [value for key, value in response_json.items()]
+        self.knowledge_points = [value if value != "" else key for key, value in response_json.items()]
         return self.knowledge_points
 
     def generate_question(self, knowledge_point: List[str]) -> List[Dict]:
