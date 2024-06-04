@@ -3,7 +3,7 @@ LOADER_DICT = {
     "CSVLoader": [".csv"],
     # "FilteredCSVLoader": [".csv"], 如果使用自定义分割csv
     "RapidOCRPDFLoader": [".pdf"],
-    "UnstructuredWordDocumentLoader": ['.docx', '.doc'],
+    "UnstructuredWordDocumentLoader": ['.docx', '.uploaded_file'],
 }
 SUPPORTED_EXTS = [ext for sublist in LOADER_DICT.values() for ext in sublist]
 

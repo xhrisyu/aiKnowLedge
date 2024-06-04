@@ -64,7 +64,7 @@ async def get_kb_data(database_name, collection_name):
             return JSONResponse(content=[])
 
         # Form DataFrame
-        # data = [{k: v.decode('utf-8') if isinstance(v, bytes) else v for k, v in doc.items()} for doc in cursor]  # Encode bytes to utf-8
+        # data = [{k: v.decode('utf-8') if isinstance(v, bytes) else v for k, v in uploaded_file.items()} for uploaded_file in cursor]  # Encode bytes to utf-8
         kb_dataframe = pd.DataFrame(data)
         kb_dataframe.fillna('', inplace=True)  # fill NaN with empty string
         kb_dataframe['_id'] = kb_dataframe['_id'].apply(lambda x: str(x))  # Convert `_id` object to string
@@ -123,6 +123,7 @@ async def insert_vec_data(params: VecInsertParams):
             embedding_client=app.state.llm_client
         )
         vectors_data = vec_processor.process()
+
         # Insert vectors to VecDB
         vecdb_client = app.state.qdrant_client
         vecdb_client.checkout_collection(params.vecdb_collection_name)

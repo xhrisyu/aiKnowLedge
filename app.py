@@ -59,9 +59,10 @@ if not check_password():
     st.stop()
 
 if selected_item == "主页":
-    st.write("""
-    # Under developing...🤓
-    """)
+    st.title("Welcome to aiKnowLedge🤓")
+    # st.write("""
+    # # Under developing...🤓
+    # """)
     # st.caption('This is a string that explains something above.')
     # st.caption('A caption with _italics_ :blue[colors] and emojis :sunglasses:')
     # with st.echo():

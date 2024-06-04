@@ -148,6 +148,7 @@ def get_file_extension(file_path: str, with_dot: bool = False, upper: bool = Tru
         file_extension = os.path.splitext(os.path.basename(file_path))[1][1:]
     return file_extension.upper() if upper else file_extension
 
+
 # =================== File Utils ===================
 def file_exist(file_path: str) -> bool:
     return os.path.exists(file_path)

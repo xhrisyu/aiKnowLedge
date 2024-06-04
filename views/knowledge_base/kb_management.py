@@ -111,14 +111,23 @@ def kb_management_page():
             in_local_disk = file_exist(row["location"])  # check if file exists in local disk
 
             # Column 1: Download selected file
-            with open(row["location"], "rb") as fp:
+            if not in_local_disk:
                 cols[0].download_button(
                     label="下载选中文档",
-                    data=fp,
+                    data="",
                     file_name=row["file_name"],
                     use_container_width=True,
-                    disabled=not in_local_disk
+                    disabled=True
                 )
+            else:
+                with open(row["location"], "rb") as fp:
+                    cols[0].download_button(
+                        label="下载选中文档",
+                        data=fp,
+                        file_name=row["file_name"],
+                        use_container_width=True,
+                        disabled=False
+                    )
 
             # Column 2: Add selected file to Vector DB
             if cols[1].button(
@@ -134,26 +143,36 @@ def kb_management_page():
                     "separators": convert_numpy_types(row["separators"]),  # escaped[转义] characters, '\\n' etc.
                 }
                 with st.spinner('正在添加到向量数据库中...'):
+                    print(f"params data fro VEC_INSERT:\n{params_data}")
                     # Add file content to Vector DB (Qdrant)
                     response1 = requests.post(
                         url=APIPaths.get_full_path(APIPaths.VEC_INSERT),
-                        json={"vecdb_collection_name": QDRANT_COLLECTION_DEFAULT_NAME, "data": params_data}
-                    )
-                    # Update `in_vector_db` field in MongoDB
-                    response2 = requests.post(
-                        url=APIPaths.get_full_path(APIPaths.KB_UPDATE),
                         json={
-                            "database_name": MONGO_DATABASE_NAME,
-                            "collection_name": MONGO_COLLECTION_DEFAULT_NAME,
-                            "doc_id": doc_id,
-                            "update_dict": {"in_vector_db": True}
+                            "vecdb_collection_name": QDRANT_COLLECTION_DEFAULT_NAME,
+                            "data": params_data
                         }
                     )
-                    if response1.status_code == 200 and response2.status_code == 200:
-                        st.success("文件已添加至向量库", icon='🎉')
+                    # Update `in_vector_db` field in MongoDB
+                    if response1.status_code == 200:
+                        response2 = requests.post(
+                            url=APIPaths.get_full_path(APIPaths.KB_UPDATE),
+                            json={
+                                "database_name": MONGO_DATABASE_NAME,
+                                "collection_name": MONGO_COLLECTION_DEFAULT_NAME,
+                                "doc_id": doc_id,
+                                "update_dict": {"in_vector_db": True}
+                            }
+                        )
+                        if response2.status_code == 200:
+                            st.success("文件已添加至向量库", icon='🎉')
+                            time.sleep(1.0)
+                            st.rerun()
+                        else:
+                            st.error(f"更新文件在知识库中的状态时发生错误. 状态码: {response2.status_code}")
+                            return
                     else:
-                        st.error(f"添加文件至向量库时发生错误. 状态码: {response.status_code}")
-                    st.rerun()
+                        st.error(f"添加文件至向量库时发生错误. 状态码: {response1.status_code}")
+                        return
 
             # Column 3: Remove selected file from Vector DB (not remove from KB)
             if cols[2].button(
@@ -166,20 +185,26 @@ def kb_management_page():
                         url=APIPaths.get_full_path(APIPaths.VEC_REMOVE),
                         json={"vecdb_collection_name": QDRANT_COLLECTION_DEFAULT_NAME, "doc_ids": str(doc_id)}
                     )
-                    response2 = requests.post(
-                        url=APIPaths.get_full_path(APIPaths.KB_UPDATE),
-                        json={
-                            "database_name": MONGO_DATABASE_NAME,
-                            "collection_name": MONGO_COLLECTION_DEFAULT_NAME,
-                            "doc_id": doc_id,
-                            "update_dict": {"in_vector_db": False}
-                        }
-                    )
-                    if response1.status_code == 200 and response2.status_code == 200:
-                        st.success("文件已从向量库中删除", icon='🎉')
+                    if response1.status_code == 200:
+                        response2 = requests.post(
+                            url=APIPaths.get_full_path(APIPaths.KB_UPDATE),
+                            json={
+                                "database_name": MONGO_DATABASE_NAME,
+                                "collection_name": MONGO_COLLECTION_DEFAULT_NAME,
+                                "doc_id": doc_id,
+                                "update_dict": {"in_vector_db": False}
+                            }
+                        )
+                        if response2.status_code == 200:
+                            st.success("文件已从向量库中删除", icon='🎉')
+                            time.sleep(1.0)
+                            st.rerun()
+                        else:
+                            st.error(f"更新文件在知识库中的状态时发生错误. 状态码: {response2.status_code}")
+                            return
                     else:
                         st.error(f"从向量库中删除文件时发生错误. 状态码: {response1.status_code}")
-                    st.rerun()
+                        return
 
             # Column 4: Remove selected file both from KB and Vector DB
             if cols[3].button(
@@ -221,7 +246,11 @@ def kb_management_page():
     """
     # Single file upload
     with st.form("my-form", clear_on_submit=True):
-        uploaded_file = st.file_uploader("上传知识文件", type=SUPPORTED_EXTS)
+        uploaded_file = st.file_uploader(
+            label="上传知识文件",
+            type=SUPPORTED_EXTS,
+            accept_multiple_files=False,
+        )
         # Document Preprocess parameters
         with st.expander("文本处理参数", expanded=True):
             cols = st.columns([0.4, 0.4, 0.2])
@@ -247,9 +276,10 @@ def kb_management_page():
                 uploaded_file_bytes = uploaded_file.getvalue()  # read file as bytes
                 uploaded_file_name = uploaded_file.name
                 file_extension = get_file_extension(uploaded_file_name, upper=True, with_dot=False)
+
                 # Create local directories
-                local_doc_dir = os.path.join(os.getcwd(), "doc")  # os.getcwd() 当前工程绝对路径
-                local_uploaded_file_dir = os.path.join(local_doc_dir, "uploaded_file")
+                local_doc_dir = os.path.join(os.getcwd(), "uploaded_file")  # os.getcwd()当前工程绝对路径
+                local_uploaded_file_dir = os.path.join(local_doc_dir, "kb")
                 if not os.path.exists(local_doc_dir):
                     os.makedirs(local_doc_dir)
                 if not os.path.exists(local_uploaded_file_dir):

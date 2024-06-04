@@ -360,8 +360,8 @@ if __name__ == "__main__":
     # print(description)
 
     # ------ Process pdf txt text ------
-    # process_pdf(folder_path='doc_raw/第一期知识库part3', output_folder_path='doc/kb_4_pdf_2_txt')
-    process_pdf_langchain(folder_path='../doc_raw/第一期知识库part3', output_folder_path='../doc/kb_4_pdf_2_txt')
+    # process_pdf(folder_path='doc_raw/第一期知识库part3', output_folder_path='uploaded_file/kb_4_pdf_2_txt')
+    process_pdf_langchain(folder_path='../doc_raw/第一期知识库part3', output_folder_path='../doc_raw/kb_4_pdf_2_txt')
 
     # ------ Process docx txt text ------
-    # process_docx(folder_path='doc_raw/第一期知识库part3', output_folder_path='doc/kb_4_docx_2_txt')
+    # process_docx(folder_path='doc_raw/第一期知识库part3', output_folder_path='uploaded_file/kb_4_docx_2_txt')
