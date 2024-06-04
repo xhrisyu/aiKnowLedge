@@ -26,11 +26,16 @@ services:
       - qdrant
       - mongo
     volumes:
-      - "./uploaded_file:/app/uploaded_file:z"
+      - "./uploaded_file:/aiknowledge/uploaded_file:z"
     ports:
       - "8501:8501"
     networks:
       - aiknowledge
+
+volumes:
+  qdrant_storage:
+  mongo_storage:
+  uploaded_file:
 
 networks:
   aiknowledge:
