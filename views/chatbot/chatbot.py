@@ -36,12 +36,12 @@ def chatbot_page():
     with st.sidebar:
         with st.expander("⚙️ Retriever", expanded=True):
             top_k = st.slider(label="Top K", min_value=1, max_value=10, value=3, step=1)
-            sim_threshold = st.slider(label="Similarity Threshold", min_value=0.0, max_value=1.0, value=0.8, step=0.01)
-            additional_context_length = st.slider(label="Additional Context Length", min_value=0, max_value=500, value=50, step=10)
+            sim_threshold = st.slider(label="Similarity Threshold", min_value=0.0, max_value=1.0, value=0.65, step=0.01)
+            additional_context_length = st.slider(label=":orange[Additional Context Length]", min_value=0, max_value=300, value=50, step=5)
         with st.expander("⚙️ Generator", expanded=True):
             chat_model_type = st.selectbox(label="Chat Model", options=["gpt-3.5-turbo", "gpt-4-turbo", "gpt-4o", ])
-            temperature = st.slider(label="Temperature", min_value=0.0, max_value=2.0, value=0.8, step=0.1)
-            is_stream = st.toggle(label="Stream", value=False)
+            temperature = st.slider(label="Temperature", min_value=0.0, max_value=2.0, value=0.7, step=0.1)
+            is_stream = st.toggle(label="Stream", value=True)
 
     # Main Area: Chatbot & Retriever Panel
     col1, gap, col2 = st.columns([3, 0.01, 2])
@@ -76,22 +76,26 @@ def chatbot_page():
                     qdrant_client = get_qdrant_client()
                     # Intention recognition
 
+
                     # Retrieve Documents
                     print("Start to retrieve documents...")
                     time1 = time.time()
                     embedded_user_question = llm_client.get_text_embedding(text=user_input)
                     qdrant_client.checkout_collection(QDRANT_COLLECTION_DEFAULT_NAME)
-                    retrieved_payloads = qdrant_client.retrieve_similar_vectors(
+                    retrieved_payloads = qdrant_client.retrieve_similar_vectors_with_adjacent_context(
                         query_vector=embedded_user_question,
                         top_k=top_k,
                         sim_lower_bound=sim_threshold,
-                    )  # [{"chunk_id": 1, "document_name": "xxx", "page_content": "xxx", "score": 0.72, page: 0}, ...]
+                        adjacent_len=additional_context_length
+                    )  # [{"chunk_id": 1, "document_name": "xxx", "page_content": "xxx", "pre_page_content": "xxx", "next_page_content": "xxx", "score": 0.72, "page": 0}, ...]
                     st.session_state.retrieved_docs = retrieved_payloads
                     context = ""
                     for doc in st.session_state.retrieved_docs:
                         document_name = doc['document_name']
-                        page_content = doc['page_content']
-                        context += f"相关文本来源: {document_name}\n相关文本内容:\n{page_content}\n\n"
+                        page_content = doc.get('page_content', "")
+                        pre_page_content = doc.get('pre_page_content', "")
+                        next_page_content = doc.get('next_page_content', "")
+                        context += f"相关文本来源: {document_name}\n相关文本内容:\n{pre_page_content}{page_content}{next_page_content}\n"
                     time2 = time.time()
                     print(f"Retrieve documents time: {time2 - time1}")
 
@@ -124,7 +128,7 @@ def chatbot_page():
                         )
                         ai_response = st.write_stream(response_generator)
                     time3 = time.time()
-                    print(f"Generate AI response time: {time3 - time2}")
+                    print(f"Generate AI response time: {time3 - time2}\n")
 
             # Add to messages session
             st.session_state.messages.append({"role": "user", "content": user_input})
@@ -152,10 +156,13 @@ def chatbot_page():
                 chunk_id = doc["chunk_id"]
                 page = doc["page"]
                 document_name = doc["document_name"]
-                page_content = doc["page_content"]
+                page_content = doc.get("page_content", "")
+                pre_page_content = doc.get('pre_page_content', "")
+                next_page_content = doc.get('next_page_content', "")
                 score = doc["score"]
+                # Display
                 st.markdown(f"**来源{no + 1}**: **{document_name}** ***(page:{page}, chunk_id:{chunk_id})***")
-                st.markdown(f"{page_content}")
-                st.markdown(f":orange[相似度={score}]")
+                st.markdown(f":orange[{pre_page_content}]{page_content}:orange[{next_page_content}]")
+                st.markdown(f":red[相似度={score}]")
                 st.divider()
 

@@ -108,8 +108,8 @@ class QAQdrantClient(QdrantClient):
     def retrieve_similar_vectors(
             self,
             query_vector: List[float],
-            top_k: int,
-            sim_lower_bound: float = 0.8
+            top_k: int = 3,
+            sim_lower_bound: float = 0.75
     ) -> List[Dict]:
         """
         Retrieve similar vectors
@@ -143,8 +143,8 @@ class QAQdrantClient(QdrantClient):
             self,
             query_vector: List[float],
             top_k: int = 3,
-            sim_lower_bound: float = 0.8,
-            adjacent_len: int = 0,
+            sim_lower_bound: float = 0.75,
+            adjacent_len: int = 0
     ) -> List[Dict]:
         """
         Retrieve similar vectors with theirs adjacent context(by chunk_id)
@@ -155,6 +155,41 @@ class QAQdrantClient(QdrantClient):
         :return: list of retrieved payloads.
                 Sample: [{"chunk_id": 1, "document_name": "xxx", "page_content": "xxx"}, ...]
         """
+
+        def qdrant_query_filter(_document_id: str, _chunk_id: int):
+            return Filter(must=[
+                FieldCondition(key="document_id", match=MatchValue(value=_document_id)),
+                FieldCondition(key="chunk_id", match=MatchValue(value=_chunk_id))
+            ])
+
+        def merge_chunks(chunk1, chunk2):
+            """
+            Merge two chunks by removing the overlap
+            """
+            max_overlap = min(len(chunk1), len(chunk2))
+            for i in range(max_overlap, 0, -1):
+                # Start with chunk1's tail and chunk2's head
+                if chunk1[-i:] == chunk2[:i]:
+                    return chunk1 + chunk2[i:]
+            return chunk1 + chunk2  # if no overlap, simply concatenate
+
+        def remove_overlap(chunk1, chunk2):
+            """
+            Remove the overlap from chunk1
+            """
+            max_overlap = min(len(chunk1), len(chunk2))
+            # Start with chunk1's tail and chunk2's head
+            for i in range(max_overlap, 0, -1):
+                if chunk1[-i:] == chunk2[:i]:
+                    return chunk1[:-i]
+
+            # Start with chunk1's head and chunk2's tail
+            for i in range(max_overlap, 0, -1):
+                if chunk1[:i] == chunk2[-i:]:
+                    return chunk1[i:]
+
+            return chunk1
+
         # Retrieve similar points
         points = self.search(
             collection_name=self._collection_name,
@@ -164,68 +199,79 @@ class QAQdrantClient(QdrantClient):
             with_vectors=False,
             score_threshold=sim_lower_bound,
         )
+
         # Retrieve searched vectors adjacent points by payload(source and id)
         retrieved_infos = []
         for point in points:
             cur_document_id = point.payload['document_id']
-            cur_document_name = point.payload['document_name']
             cur_chunk_id = point.payload['chunk_id']
-            score = point.score
 
-            # Pre-context search
-            pre_context_filter_condition = Filter(
-                must=[
-                    FieldCondition(  # 匹配特定的 source 字段
-                        key="metadata.document_id",
-                        match=MatchValue(value=cur_document_id)
-                    ),
-                    FieldCondition(  # 匹配特定的 chunk_id 字段
-                        key="metadata.chunk_id",
-                        match=MatchValue(value=cur_chunk_id - 1)
-                    )]
-            )
-            pre_point = self.search(
-                collection_name=self._collection_name,
-                query_vector=query_vector,  # not used
-                query_filter=pre_context_filter_condition,
-                limit=1,
-                with_payload=True,
-                with_vectors=False
-            )
+            # Get adjacent points
+            final_pre_content, final_next_content = "", ""
+            last_pre_new_len, last_next_new_len = 0, 0  # last round new part length. If no update, break
+            if adjacent_len > 0:
+                adjacent_idx = 1
+                while True:
+                    # Pre-context & Next-context search
+                    pre_point = self.search(collection_name=self._collection_name,
+                                            query_vector=query_vector,  # no use
+                                            query_filter=qdrant_query_filter(cur_document_id, cur_chunk_id - adjacent_idx),
+                                            limit=1,
+                                            with_payload=True,
+                                            with_vectors=False)
+                    next_point = self.search(collection_name=self._collection_name,
+                                             query_vector=query_vector,
+                                             query_filter=qdrant_query_filter(cur_document_id, cur_chunk_id + adjacent_idx),
+                                             limit=1,
+                                             with_payload=True,
+                                             with_vectors=False)
 
-            # Next-context search
-            next_context_filter_condition = Filter(
-                must=[
-                    FieldCondition(
-                        key="metadata.document_id",
-                        match=MatchValue(value=cur_document_id)
-                    ),
-                    FieldCondition(
-                        key="metadata.chunk_id",
-                        match=MatchValue(value=cur_chunk_id + 1)
-                    )]
-            )
-            next_point = self.search(
-                collection_name=self._collection_name,
-                query_vector=query_vector,  # not used
-                query_filter=next_context_filter_condition,
-                limit=1,
-                with_payload=True,
-                with_vectors=False
-            )
+                    # Get adjacent points' page_content
+                    pre_content = pre_point[0].payload['page_content'] if pre_point else ""
+                    next_content = next_point[0].payload['page_content'] if next_point else ""
 
-            # Merge adjacent points' page_content
-            pre_content = pre_point[0].payload['page_content'][:-adjacent_len] if pre_point else ""
-            next_content = next_point[0].payload['page_content'][adjacent_len:] if next_point else ""
-            merge_page_content = pre_content + point.payload['page_content'] + next_content
+                    if adjacent_idx == 1:
+                        final_pre_content = remove_overlap(pre_content, point.payload['page_content'])
+                        final_next_content = remove_overlap(next_content, point.payload['page_content'])
+                    else:
+                        pre_new_len, next_new_len = 0, 0
+                        if pre_content:
+                            final_pre_content = merge_chunks(pre_content, final_pre_content)
+                            pre_new_len = len(final_pre_content) - len(pre_content)
+                        if next_content:
+                            final_next_content = merge_chunks(final_next_content, next_content)
+                            next_new_len = len(final_next_content) - len(next_content)
+                        # if no update, then break
+                        if (last_pre_new_len == 0 and pre_new_len == 0) or (last_next_new_len == 0 and next_new_len == 0):
+                            break
+
+                        last_pre_new_len = pre_new_len
+                        last_next_new_len = next_new_len
+
+                    # Break if pre_content and next_content are enough
+                    if len(final_pre_content) >= adjacent_len and len(final_next_content) >= adjacent_len:
+                        break
+
+                    adjacent_idx += 1
+
+            # final_pre_content = final_pre_content[-adjacent_len:] if len(final_pre_content) > adjacent_len else final_pre_content
+            # final_next_content = final_next_content[:adjacent_len] if len(final_next_content) > adjacent_len else final_next_content
+            # python 3.11 可自动判断长度截取
+            final_pre_content = final_pre_content[-adjacent_len:]
+            final_next_content = final_next_content[:adjacent_len]
 
             # Construct retrieved payload
             info = {
                 "chunk_id": cur_chunk_id,
-                "document_name": cur_document_name,
-                "page_content": merge_page_content,
-                "score": score
+                "document_name": point.payload['document_name'],
+                "page_content": point.payload['page_content'],
+                "pre_page_content": final_pre_content,
+                "next_page_content": final_next_content,
+                "score": point.score,
+                "page": point.payload['page'],
             }
+            print(f"retrieved info:\npre page content: {final_pre_content}\npage content: {point.payload['page_content']}\nnext page content: {final_next_content}")
+            print(f"\n\n\n")
             retrieved_infos.append(info)
         return retrieved_infos
 
