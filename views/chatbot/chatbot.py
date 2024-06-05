@@ -42,6 +42,7 @@ def chatbot_page():
             chat_model_type = st.selectbox(label="Chat Model", options=["gpt-3.5-turbo", "gpt-4-turbo", "gpt-4o", ])
             temperature = st.slider(label="Temperature", min_value=0.0, max_value=2.0, value=0.7, step=0.1)
             is_stream = st.toggle(label="Stream", value=True)
+            chat_history_len = st.number_input(label="Chat History Length", min_value=0, max_value=20, value=6, step=2)
 
     # Main Area: Chatbot & Retriever Panel
     col1, gap, col2 = st.columns([3, 0.01, 2])
@@ -57,7 +58,7 @@ def chatbot_page():
 
         # Init chat message
         if "messages" not in st.session_state:
-            st.session_state.messages = [{"role": "assistant", "content": "这里是Ledge，有什么可以帮您？"}]
+            st.session_state.messages = [{"role": "assistant", "content": "这里是Ledge，你的知识库问答助手，想问些什么？"}]
 
         # Display chat session message
         for message in st.session_state.messages:
@@ -103,7 +104,7 @@ def chatbot_page():
                     chat_history = st.session_state.messages[:-1]
                     chat_history_str = ""
                     if chat_history:
-                        chat_history = chat_history[-CHAT_HISTORY_LEN:] if len(chat_history) > CHAT_HISTORY_LEN else chat_history
+                        chat_history = chat_history[-chat_history_len:] if len(chat_history) > chat_history_len else chat_history
                         chat_history_str = convert_chat_message_to_str(chat_history)
                     chat_history_str += f"用户: {user_input}\n"
 
