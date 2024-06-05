@@ -1,18 +1,17 @@
 import base64
 import time
-from typing import Optional, List, Generator
+from typing import Optional, List, Generator, Dict
 
 import requests
-from . import prompt
+from .prompt import Prompt
 from openai import OpenAI
 
 
 class OpenAILLM:
     MODEL = "gpt-4o"
-    CHAT_MODEL = "gpt-4-0125-preview"
+    CHAT_MODEL = "gpt-4-turbo"
     EMBEDDING_MODEL = "text-embedding-ada-002"
-    TRANSLATE_MODEL = "gpt-3.5-turbo-instruct"
-    CLASSIFY_MODEL = "gpt-4-0125-preview"
+    INTENTION_RECOGNITION_MODEL = "gpt-3.5-turbo"
 
     def __init__(self, api_key):
         self.embedding = OpenAI(api_key=api_key, max_retries=3).embeddings
@@ -29,21 +28,14 @@ class OpenAILLM:
             self,
             user_question: str,
             context: Optional[str],
-            chat_history: Optional[str],
+            chat_history: List[Dict],
             temperature: Optional[float] = 0.8,
             model_name: Optional[str] = None
     ) -> Optional[str]:
-        # messages = [
-        #     {"role": "system", "content": prompt.QA["system"]},
-        #     {"role": "user", "content": prompt.QA["user"].format(
-        #         CONTENT=related_text,
-        #         QUESTION=user_question,
-        #         CHAT_HISTORY=chat_history if chat_history else ""
-        #     )}
-        # ]
         messages = [
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": f"{context}\n\nQ: {user_question}\nA:"}
+            {"role": "system", "content": Prompt.knowledge_base_chatbot()},
+            *chat_history,
+            {"role": "user", "content": f"{context}\n用户问题：{user_question}\n"}
         ]
         response = self.chat_completion.create(
             model=self.CHAT_MODEL if not model_name else model_name,
@@ -62,13 +54,14 @@ class OpenAILLM:
             self,
             user_question: str,
             context: Optional[str],
-            chat_history: Optional[str],
+            chat_history: List[Dict],
             temperature: Optional[float] = 0.8,
             model_name: Optional[str] = None
     ) -> Generator[str, None, None]:
         messages = [
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": f"{context}\n\nQ: {user_question}\nA:"}
+            {"role": "system", "content": Prompt.knowledge_base_chatbot()},
+            *chat_history,
+            {"role": "user", "content": f"{context}\n用户问题：{user_question}\n"}
         ]
         response_stream = self.chat_completion.create(
             model=self.CHAT_MODEL if not model_name else model_name,
@@ -80,15 +73,18 @@ class OpenAILLM:
             if chunk.choices[0].delta.content is not None:
                 chunk_message = chunk.choices[0].delta.content
                 yield chunk_message
-            time.sleep(0.02)  # 模拟延迟
+            # time.sleep(0.02)  # 延迟
 
     def intention_recognition(self, user_question: str, model_name: Optional[str] = None) -> str:
-        messages = [{"role": "user", "content": user_question}]
+        messages = [
+            {"role": "system", "content": Prompt.user_intention_recognition()},
+            {"role": "user", "content": user_question}
+        ]
         response = self.chat_completion.create(
-            model=self.CLASSIFY_MODEL if not model_name else model_name,
+            model=self.INTENTION_RECOGNITION_MODEL if not model_name else model_name,
             messages=messages,
-            temperature=0.8,
-            n=1
+            response_format={"type": "json_object"},
+            temperature=0.5
         )
         return response.choices[0].message.content
 
@@ -115,7 +111,7 @@ class OpenAILLM:
                     "content": [
                         {
                             "type": "text",
-                            "text": prompt.get_table_content_prompt
+                            "text": Prompt.get_table_content_prompt
                         },
                         {
                             "type": "image_url",
@@ -151,7 +147,7 @@ class OpenAILLM:
                     "content": [
                         {
                             "type": "text",
-                            "text": prompt.get_image_content_prompt
+                            "text": Prompt.get_image_content_prompt
                         },
                         {
                             "type": "image_url",

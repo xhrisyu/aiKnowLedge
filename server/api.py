@@ -52,6 +52,7 @@ async def lifespan(FastAPI_app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
+# ------------------------------------ Mongo API ------------------------------------
 @app.get(APIPaths.KB_GET)
 async def get_kb_data(database_name, collection_name):
     try:
@@ -110,6 +111,7 @@ async def remove_kb_data_by_id(params: KBRemoveParams):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ------------------------------------ Vector API ------------------------------------
 @app.post(APIPaths.VEC_INSERT)
 async def insert_vec_data(params: VecInsertParams):
     try:

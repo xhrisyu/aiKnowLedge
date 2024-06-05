@@ -7,8 +7,7 @@ from qdrant_client.models import PointStruct, VectorParams, Distance
 # ========================= Qdrant Client =========================
 class QAQdrantClient(QdrantClient):
     def __init__(self, collection_name: str, embedding_dim: int = 1536, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)  # Initialize super class
-
+        super().__init__(*args, **kwargs)
         # Create a new collection if it does not exist
         if collection_name and collection_name not in self.collection_names:
             self.recreate_collection(
@@ -153,9 +152,18 @@ class QAQdrantClient(QdrantClient):
         :param sim_lower_bound: similarity lower bound
         :param adjacent_len: adjacent length
         :return: list of retrieved payloads.
-                Sample: [{"chunk_id": 1, "document_name": "xxx", "page_content": "xxx"}, ...]
+        [
+            {
+                "chunk_id": 1,
+                "document_name": "xxx",
+                "page_content": "xxx",
+                "pre_page_content": "xxx",
+                "next_page_content": "xxx",
+                "score": 0.72,
+                "page": 0
+            },...
+        ]
         """
-
         def qdrant_query_filter(_document_id: str, _chunk_id: int):
             return Filter(must=[
                 FieldCondition(key="document_id", match=MatchValue(value=_document_id)),
@@ -270,9 +278,8 @@ class QAQdrantClient(QdrantClient):
                 "score": point.score,
                 "page": point.payload['page'],
             }
-            print(f"retrieved info:\npre page content: {final_pre_content}\npage content: {point.payload['page_content']}\nnext page content: {final_next_content}")
-            print(f"\n\n\n")
             retrieved_infos.append(info)
+
         return retrieved_infos
 
     # def retrieve_similar_note_vec_ids(self, query_vec: List[float], limit: int = 5) -> list[UUID]:

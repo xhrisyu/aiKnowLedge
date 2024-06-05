@@ -4,6 +4,7 @@ Chatbot Page
 $ Retrieving documents use qdrant client directly, not through FastAPI server [http request is slow]
 $ QA request use llm client directly, not through FastAPI server [streaming output is hard to implement]
 """
+import json
 import time
 import streamlit as st
 from streamlit_float import float_init, float_css_helper, float_parent
@@ -48,7 +49,11 @@ def chatbot_page():
     col1, gap, col2 = st.columns([3, 0.01, 2])
 
     # Area 1(Left): Chatbot
-    with col1.container(border=False, height=550):
+    chatbot_container = col1.container(border=False, height=550)
+    # Area 2(Right): Retriever Panel
+    retriever_container = col2.container(border=False, height=700)
+
+    with chatbot_container:
         # Chat input
         with st.container(border=False):
             float_init(theme=True, include_unstable_primary=False)
@@ -66,55 +71,99 @@ def chatbot_page():
                 st.write(message["content"])
 
         if user_input:
+            llm_client = get_llm_client()
+            qdrant_client = get_qdrant_client()
+
             # User Message
             with st.chat_message("user"):
                 st.markdown(user_input)
 
             # AI Message
             with st.chat_message("assistant"):
-                with st.spinner("思考中..."):
-                    llm_client = get_llm_client()
-                    qdrant_client = get_qdrant_client()
-                    # Intention recognition
+                st.session_state.user_intention = {}  # save llm intention recognition result
+                st.session_state.user_recognized_question = []  # save llm recognized questions
+                st.session_state.retrieved_docs = []  # save retrieved document from vecdb
+                st.session_state.context = ""  # formatted context for AI response
 
+                # Intention recognition
+                with st.spinner("用户意图识别..."):
+                    print("Start to recognize user intention...")
+                    time1 = time.time()
+                    intention_response_str = llm_client.intention_recognition(user_input)  # "{"1": {"keywords": [], "coherent_sentence": "xxx"}, "2": {}}"
+                    st.session_state.user_intention = json.loads(intention_response_str)
+                    time2 = time.time()
+                    print(f"Intention recognition time: {time2 - time1}\n")
 
-                    # Retrieve Documents
+                    with retriever_container:
+                        st.markdown("#### 用户意图识别结果")
+                        for no, intention in st.session_state.user_intention.items():
+                            keywords = intention.get("keywords", [])
+                            coherent_sentence = intention.get("coherent_sentence", "")
+                            if coherent_sentence:
+                                st.session_state.user_recognized_question.append(coherent_sentence)
+
+                            st.markdown(f"**分析{no}**")
+                            keywords_str = ", ".join(keywords)
+                            st.markdown(f"**{coherent_sentence}** ***(关键词: {keywords_str})***")
+                        st.divider()
+
+                # Retrieve Documents
+                with st.spinner("文档检索中..."):
                     print("Start to retrieve documents...")
                     time1 = time.time()
-                    embedded_user_question = llm_client.get_text_embedding(text=user_input)
+                    # Iterate each recognized question
                     qdrant_client.checkout_collection(QDRANT_COLLECTION_DEFAULT_NAME)
-                    retrieved_payloads = qdrant_client.retrieve_similar_vectors_with_adjacent_context(
-                        query_vector=embedded_user_question,
-                        top_k=top_k,
-                        sim_lower_bound=sim_threshold,
-                        adjacent_len=additional_context_length
-                    )  # [{"chunk_id": 1, "document_name": "xxx", "page_content": "xxx", "pre_page_content": "xxx", "next_page_content": "xxx", "score": 0.72, "page": 0}, ...]
-                    st.session_state.retrieved_docs = retrieved_payloads
-                    context = ""
+                    for user_question in st.session_state.user_recognized_question:
+                        embedded_user_question = llm_client.get_text_embedding(text=user_question)
+                        retrieved_payloads = qdrant_client.retrieve_similar_vectors_with_adjacent_context(
+                            query_vector=embedded_user_question,
+                            top_k=top_k,
+                            sim_lower_bound=sim_threshold,
+                            adjacent_len=additional_context_length
+                        )
+                        st.session_state.retrieved_docs.extend(retrieved_payloads)
+                    # Sort retrieved documents result by score
+                    st.session_state.retrieved_docs = st.session_state.retrieved_docs[:top_k]
+                    st.session_state.retrieved_docs = sorted(st.session_state.retrieved_docs, key=lambda x: x["score"], reverse=True)
                     for doc in st.session_state.retrieved_docs:
                         document_name = doc['document_name']
                         page_content = doc.get('page_content', "")
                         pre_page_content = doc.get('pre_page_content', "")
                         next_page_content = doc.get('next_page_content', "")
-                        context += f"相关文本来源: {document_name}\n相关文本内容:\n{pre_page_content}{page_content}{next_page_content}\n"
+                        st.session_state.context += f"[文本来源]: {document_name}\n[正文]:{pre_page_content}{page_content}{next_page_content}\n<DIVIDER>"
                     time2 = time.time()
                     print(f"Retrieve documents time: {time2 - time1}")
 
-                    # Get chat history from st.session.state (exclude the newly added user message)
-                    chat_history = st.session_state.messages[:-1]
-                    chat_history_str = ""
-                    if chat_history:
-                        chat_history = chat_history[-chat_history_len:] if len(chat_history) > chat_history_len else chat_history
-                        chat_history_str = convert_chat_message_to_str(chat_history)
-                    chat_history_str += f"用户: {user_input}\n"
+                    with retriever_container:
+                        st.markdown("#### 文档检索结果")
+                        for no, doc in enumerate(st.session_state.retrieved_docs):
+                            chunk_id = doc["chunk_id"]
+                            page = doc["page"]
+                            document_name = doc["document_name"]
+                            page_content = doc.get("page_content", "")
+                            pre_page_content = doc.get('pre_page_content', "")
+                            next_page_content = doc.get('next_page_content', "")
+                            score = doc["score"]
+                            # Display
+                            st.markdown(f"**来源{no + 1}**: **{document_name}** ***(page:{page}, chunk_id:{chunk_id})***")
+                            st.markdown(f":orange[{pre_page_content}]{page_content}:orange[{next_page_content}]")
+                            st.markdown(f":red[相似度={score}]")
+                            st.divider()
 
-                    # Generate AI Response
+                # Generate AI Response
+                with st.spinner("思考中..."):
+                    # Get chat history from st.session.state
+                    chat_history = st.session_state.messages
+                    if len(chat_history) > chat_history_len:
+                        chat_history = chat_history[-chat_history_len:]
+
                     print("Start to generate AI response...")
+                    time1 = time.time()
                     if not is_stream:
                         ai_response = llm_client.get_chat_response(
                             user_question=user_input,
-                            context=context,
-                            chat_history="",
+                            context=st.session_state.context,
+                            chat_history=chat_history,  # [{"role": "assistant", "content": "xxx"}, {"role": "user", "content": "xxx"}...]
                             temperature=temperature,
                             model_name=chat_model_type
                         )
@@ -122,14 +171,14 @@ def chatbot_page():
                     else:
                         response_generator = llm_client.stream_chat_response(
                             user_question=user_input,
-                            context=context,
-                            chat_history="",
+                            context=st.session_state.context,
+                            chat_history=chat_history,
                             temperature=temperature,
                             model_name=chat_model_type
                         )
                         ai_response = st.write_stream(response_generator)
-                    time3 = time.time()
-                    print(f"Generate AI response time: {time3 - time2}\n")
+                    time2 = time.time()
+                    print(f"Generate AI response time: {time2 - time1}\n")
 
             # Add to messages session
             st.session_state.messages.append({"role": "user", "content": user_input})
@@ -149,21 +198,5 @@ def chatbot_page():
     #     st.markdown('<div class="column-left">', unsafe_allow_html=True)
     #     st.markdown('</div>', unsafe_allow_html=True)
 
-    # Area 2(Right): Retriever Panel
-    with col2.container(border=True, height=700):
-        if "retrieved_docs" in st.session_state:
-            st.subheader("检索文档结果")
-            for no, doc in enumerate(st.session_state.retrieved_docs):
-                chunk_id = doc["chunk_id"]
-                page = doc["page"]
-                document_name = doc["document_name"]
-                page_content = doc.get("page_content", "")
-                pre_page_content = doc.get('pre_page_content', "")
-                next_page_content = doc.get('next_page_content', "")
-                score = doc["score"]
-                # Display
-                st.markdown(f"**来源{no + 1}**: **{document_name}** ***(page:{page}, chunk_id:{chunk_id})***")
-                st.markdown(f":orange[{pre_page_content}]{page_content}:orange[{next_page_content}]")
-                st.markdown(f":red[相似度={score}]")
-                st.divider()
+
 

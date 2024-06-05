@@ -10,5 +10,3 @@ SUPPORTED_EXTS = [ext for sublist in LOADER_DICT.values() for ext in sublist]
 MONGO_DATABASE_NAME = "aiknowledge"
 MONGO_COLLECTION_DEFAULT_NAME = "kb"
 QDRANT_COLLECTION_DEFAULT_NAME = "general"
-
-CHAT_HISTORY_LEN = 10
