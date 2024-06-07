@@ -23,3 +23,11 @@ maxUploadSize = 200
 # connection.
 # Default: 200
 maxMessageSize = 200
+
+
+[theme]
+primaryColor="#9554d6"
+backgroundColor="#2E0854"
+secondaryBackgroundColor="#740cac"
+textColor="#FFFFFF"
+font="sans serif"

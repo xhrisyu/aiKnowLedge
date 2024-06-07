@@ -1,3 +1,5 @@
+import os
+
 import streamlit as st
 from streamlit_option_menu import option_menu
 import hmac
@@ -39,13 +41,20 @@ st.set_page_config(
     page_icon="🤖",
     layout="wide",
     menu_items={
-        # 'Get Help': 'https://github.com/chatchat-space/Langchain-Chatchat',
-        # 'Report a bug': "https://github.com/chatchat-space/Langchain-Chatchat/issues",
+        'Get Help': 'https://github.com/yyyzzx7/aiKnowLedge.git',
+        'Report a bug': "https://github.com/yyyzzx7/aiKnowLedge/issues",
         'About': f"""欢迎使用 aiKnowLedge {VERSION}！"""
     }
 )
 
 with st.sidebar:
+    if os.path.exists(os.path.join("img", "aiknow_logo_transparent.png")):
+        st.image(os.path.join("img", "aiknow_logo_transparent.png"))
+        st.caption(
+            f"""<p align="right">当前版本：{VERSION}</p>""",
+            unsafe_allow_html=True,
+        )
+
     selected_item = option_menu(
         menu_title="",
         # options=["主页", "问答", "上传", "管理"],
@@ -55,11 +64,30 @@ with st.sidebar:
         default_index=0,
     )
 
-# if not check_password():
-#     st.stop()
+if not check_password():
+    st.stop()
 
 if selected_item == "主页":
     st.title("Welcome to aiKnowLedge🤓")
+
+    # Load local README.md file
+    en_readme, cn_readme = "", ""
+    en_readme_path = os.path.join("README_EN.md")
+    if os.path.exists(en_readme_path):
+        with open(en_readme_path, "r", encoding="utf-8") as f:
+            en_readme = f.read()
+
+    cn_readme_path = os.path.join("README_CN.md")
+    if os.path.exists(cn_readme_path):
+        with open(cn_readme_path, "r", encoding="utf-8") as f:
+            cn_readme = f.read()
+
+    tab1, tab2 = st.tabs(["English", "中文"])
+    if en_readme:
+        tab1.markdown(en_readme)
+    if cn_readme:
+        tab2.markdown(cn_readme)
+
     # st.write("""
     # # Under developing...🤓
     # """)
