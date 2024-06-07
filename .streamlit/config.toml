@@ -26,6 +26,7 @@ maxMessageSize = 200
 
 
 [theme]
+base = "light"
 primaryColor="#9554d6"
 backgroundColor="#2E0854"
 secondaryBackgroundColor="#740cac"

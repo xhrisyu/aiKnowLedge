@@ -63,7 +63,7 @@ with st.sidebar:
     if os.path.exists(os.path.join("img", "aiknow_logo_transparent.png")):
         st.image(os.path.join("img", "aiknow_logo_transparent.png"))
         st.caption(
-            f"""<p align="right">当前版本：{VERSION}</p>""",
+            f"""<p align="right">Version: {VERSION}</p>""",
             unsafe_allow_html=True,
         )
 
