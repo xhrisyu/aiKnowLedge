@@ -1,10 +1,16 @@
 import base64
 import time
-from typing import Optional, List, Generator, Dict
-
+from typing import Optional, List, Generator, Dict, Any
 import requests
+
 from .prompt import Prompt
 from openai import OpenAI
+
+
+class LLMAPIResponse:
+    def __init__(self, content: Any, token_usage: int):
+        self.content = content
+        self.token_usage = token_usage
 
 
 class OpenAILLM:
@@ -16,13 +22,20 @@ class OpenAILLM:
     def __init__(self, api_key):
         self.embedding = OpenAI(api_key=api_key, max_retries=3).embeddings
         self.chat_completion = OpenAI(api_key=api_key, max_retries=3).chat.completions
+        self._stream_chat_token_usage = 0
 
-    def get_text_embedding(self, text: str, embedding_model: Optional[str] = None) -> List[float]:
+    @property
+    def stream_chat_token_usage(self):
+        return self._stream_chat_token_usage
+
+    def get_text_embedding(self, text: str, embedding_model: Optional[str] = None) -> LLMAPIResponse:
         if not embedding_model:
             response = self.embedding.create(model=self.EMBEDDING_MODEL, input=text)
         else:
             response = self.embedding.create(model=embedding_model, input=text)
-        return response.data[0].embedding
+
+        token_usage = response.usage.total_tokens
+        return LLMAPIResponse(response.data[0].embedding, token_usage)
 
     def get_chat_response(
             self,
@@ -31,7 +44,7 @@ class OpenAILLM:
             chat_history: List[Dict],
             temperature: Optional[float] = 0.8,
             model_name: Optional[str] = None
-    ) -> Optional[str]:
+    ) -> LLMAPIResponse:
         messages = [
             {"role": "system", "content": Prompt.knowledge_base_chatbot()},
             *chat_history,
@@ -46,9 +59,8 @@ class OpenAILLM:
         # Get token cost
         completion_tokens = response.usage.completion_tokens
         prompt_tokens = response.usage.prompt_tokens
-        total_tokens = response.usage.total_tokens
-        # print(f"[[企业问答消耗的token数量: {total_tokens}]]")
-        return response.choices[0].message.content
+        token_usage = response.usage.total_tokens
+        return LLMAPIResponse(response.choices[0].message.content, token_usage)
 
     def stream_chat_response(
             self,
@@ -57,7 +69,7 @@ class OpenAILLM:
             chat_history: List[Dict],
             temperature: Optional[float] = 0.8,
             model_name: Optional[str] = None
-    ) -> Generator[str, None, None]:
+    ) -> Generator[str, None, Optional[int]]:  # Generator[YieldType, SendType, ReturnType]
         messages = [
             {"role": "system", "content": Prompt.knowledge_base_chatbot()},
             *chat_history,
@@ -67,15 +79,16 @@ class OpenAILLM:
             model=self.CHAT_MODEL if not model_name else model_name,
             messages=messages,
             temperature=temperature,
-            stream=True
+            stream=True,
+            stream_options={"include_usage": True}
         )
         for chunk in response_stream:
-            if chunk.choices[0].delta.content is not None:
-                chunk_message = chunk.choices[0].delta.content
-                yield chunk_message
-            # time.sleep(0.02)  # 延迟
+            if chunk.choices and chunk.choices[0].delta.content is not None:
+                yield chunk.choices[0].delta.content
+            if chunk.usage is not None:
+                self._stream_chat_token_usage += chunk.usage.total_tokens  # only the last chunk has the total token count
 
-    def intention_recognition(self, user_question: str, model_name: Optional[str] = None) -> str:
+    def intention_recognition(self, user_question: str, model_name: Optional[str] = None) -> LLMAPIResponse:
         messages = [
             {"role": "system", "content": Prompt.user_intention_recognition()},
             {"role": "user", "content": user_question}
@@ -86,7 +99,8 @@ class OpenAILLM:
             response_format={"type": "json_object"},
             temperature=0.5
         )
-        return response.choices[0].message.content
+        token_usage = response.usage.total_tokens
+        return LLMAPIResponse(response.choices[0].message.content, token_usage)
 
     @staticmethod
     def encode_image(image_path):

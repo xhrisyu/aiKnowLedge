@@ -13,7 +13,6 @@ from config import app_config
 from views.constants import *
 from llm import OpenAILLM
 from db import QAQdrantClient
-from utils.tools import convert_chat_message_to_str
 
 
 @st.cache_resource
@@ -86,25 +85,27 @@ def chatbot_page():
                 st.session_state.context = ""  # formatted context for AI response
 
                 # Intention recognition
-                with st.spinner("问题意图识别..."):
+                with st.spinner("问题意图识别中..."):
                     print("Start to recognize user intention...")
                     time1 = time.time()
-                    intention_response_str = llm_client.intention_recognition(user_input)  # "{"1": {"keywords": [], "coherent_sentence": "xxx"}, "2": {}}"
+                    intention_response = llm_client.intention_recognition(user_input)  # "{"1": {"keywords": [], "coherent_sentence": "xxx"}, "2": {}}"
+                    intention_response_str = intention_response.content
+                    intention_response_token_usage = intention_response.token_usage
                     st.session_state.user_intention = json.loads(intention_response_str)
                     time2 = time.time()
                     print(f"Intention recognition time: {time2 - time1}\n")
+                    chatbot_container.caption(f"Intention Recognition Token Usage: {intention_response_token_usage} | time cost: {time2 - time1}")
 
                     with retriever_container:
-                        st.markdown("#### 用户意图识别结果")
+                        st.markdown("#### 问题意图识别结果")
                         for no, intention in st.session_state.user_intention.items():
                             keywords = intention.get("keywords", [])
                             coherent_sentence = intention.get("coherent_sentence", "")
                             if coherent_sentence:
                                 st.session_state.user_recognized_question.append(coherent_sentence)
-
                             st.markdown(f"**分析{no}**")
                             keywords_str = ", ".join(keywords)
-                            st.markdown(f"**{coherent_sentence}** ***(关键词: {keywords_str})***")
+                            st.markdown(f":orange[**{coherent_sentence}** ***(关键词: {keywords_str})***]")
                         st.divider()
 
                 # Retrieve Documents
@@ -114,15 +115,22 @@ def chatbot_page():
                     # Iterate each recognized question
                     qdrant_client.checkout_collection(QDRANT_COLLECTION_DEFAULT_NAME)
                     for user_question in st.session_state.user_recognized_question:
-                        embedded_user_question = llm_client.get_text_embedding(text=user_question)
+                        embedding_response = llm_client.get_text_embedding(text=user_question)
+                        embedding_user_question = embedding_response.content
+                        embedding_response_token_usage = embedding_response.token_usage
                         retrieved_payloads = qdrant_client.retrieve_similar_vectors_with_adjacent_context(
-                            query_vector=embedded_user_question,
+                            query_vector=embedding_user_question,
                             top_k=top_k,
                             sim_lower_bound=sim_threshold,
                             adjacent_len=additional_context_length
                         )
                         st.session_state.retrieved_docs.extend(retrieved_payloads)
+                    time2 = time.time()
+                    print(f"Embedding time cost: {time2 - time1}")
+                    chatbot_container.caption(f"Embedding Token Usage: {embedding_response_token_usage} | time cost: {time2 - time1}")
+
                     # Sort retrieved documents result by score
+                    time1 = time.time()
                     st.session_state.retrieved_docs = st.session_state.retrieved_docs[:top_k]
                     st.session_state.retrieved_docs = sorted(st.session_state.retrieved_docs, key=lambda x: x["score"], reverse=True)
                     for doc in st.session_state.retrieved_docs:
@@ -151,7 +159,7 @@ def chatbot_page():
                             st.divider()
 
                 # Generate AI Response
-                with st.spinner("思考中..."):
+                with st.spinner("AI思考中..."):
                     # Get chat history from st.session.state
                     chat_history = st.session_state.messages
                     if len(chat_history) > chat_history_len:
@@ -167,7 +175,8 @@ def chatbot_page():
                             temperature=temperature,
                             model_name=chat_model_type
                         )
-                        st.markdown(ai_response)
+                        ai_response_token_usage = ai_response.token_usage
+                        st.markdown(ai_response.content)
                     else:
                         response_generator = llm_client.stream_chat_response(
                             user_question=user_input,
@@ -177,8 +186,10 @@ def chatbot_page():
                             model_name=chat_model_type
                         )
                         ai_response = st.write_stream(response_generator)
+                        ai_response_token_usage = llm_client.stream_chat_token_usage
                     time2 = time.time()
                     print(f"Generate AI response time: {time2 - time1}\n")
+                    chatbot_container.caption(f"Chat Response Token Usage: {ai_response_token_usage} | time cost: {time2 - time1}")
 
             # Add to messages session
             st.session_state.messages.append({"role": "user", "content": user_input})
