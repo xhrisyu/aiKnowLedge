@@ -86,7 +86,7 @@ def chatbot_page():
                 st.session_state.context = ""  # formatted context for AI response
 
                 # Intention recognition
-                with st.spinner("用户意图识别..."):
+                with st.spinner("问题意图识别..."):
                     print("Start to recognize user intention...")
                     time1 = time.time()
                     intention_response_str = llm_client.intention_recognition(user_input)  # "{"1": {"keywords": [], "coherent_sentence": "xxx"}, "2": {}}"

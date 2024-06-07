@@ -1,5 +1,4 @@
 import os
-
 import streamlit as st
 from streamlit_option_menu import option_menu
 import hmac
@@ -12,25 +11,38 @@ VERSION = "1.0.0"
 
 
 def check_password():
-    """Returns `True` if the user had the correct password."""
+    """Returns `True` if the user had a correct password."""
+
+    def login_form():
+        """Form with widgets to collect user information"""
+        cols = st.columns([1, 4, 1])
+        with cols[1].form("Credentials"):
+            st.text_input("Username", key="username")
+            st.text_input("Password", type="password", key="password")
+            st.form_submit_button("Log in", on_click=password_entered)
+
     def password_entered():
         """Checks whether a password entered by the user is correct."""
-        if hmac.compare_digest(st.session_state["password"], st.secrets["password"]):
+        if st.session_state["username"] in st.secrets[
+            "passwords"
+        ] and hmac.compare_digest(
+            st.session_state["password"],
+            st.secrets.passwords[st.session_state["username"]],
+        ):
             st.session_state["password_correct"] = True
-            del st.session_state["password"]  # Don't store the password.
+            del st.session_state["password"]  # Don't store the username or password.
+            del st.session_state["username"]
         else:
             st.session_state["password_correct"] = False
 
-    # Return True if the password is validated.
+    # Return True if the username + password is validated.
     if st.session_state.get("password_correct", False):
         return True
 
-    # Show input for password.
-    st.text_input(
-        "Password", type="password", on_change=password_entered, key="password"
-    )
+    # Show inputs for username + password.
+    login_form()
     if "password_correct" in st.session_state:
-        st.error("😕 Password incorrect")
+        st.error("😕 User not known or password incorrect")
     return False
 
 
@@ -72,29 +84,22 @@ if selected_item == "主页":
 
     # Load local README.md file
     en_readme, cn_readme = "", ""
-    en_readme_path = os.path.join("README_EN.md")
-    if os.path.exists(en_readme_path):
-        with open(en_readme_path, "r", encoding="utf-8") as f:
-            en_readme = f.read()
 
     cn_readme_path = os.path.join("README_CN.md")
     if os.path.exists(cn_readme_path):
         with open(cn_readme_path, "r", encoding="utf-8") as f:
             cn_readme = f.read()
 
-    tab1, tab2 = st.tabs(["English", "中文"])
-    if en_readme:
-        tab1.markdown(en_readme)
-    if cn_readme:
-        tab2.markdown(cn_readme)
+    en_readme_path = os.path.join("README_EN.md")
+    if os.path.exists(en_readme_path):
+        with open(en_readme_path, "r", encoding="utf-8") as f:
+            en_readme = f.read()
 
-    # st.write("""
-    # # Under developing...🤓
-    # """)
-    # st.caption('This is a string that explains something above.')
-    # st.caption('A caption with _italics_ :blue[colors] and emojis :sunglasses:')
-    # with st.echo():
-    #     st.write('This code will be printed')
+    tab1, tab2 = st.tabs(["中文", "English"])
+    if cn_readme:
+        tab1.markdown(cn_readme)
+    if en_readme:
+        tab2.markdown(en_readme)
 
 if selected_item == "问答助手":
     chatbot.chatbot_page()

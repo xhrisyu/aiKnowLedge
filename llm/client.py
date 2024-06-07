@@ -11,7 +11,7 @@ class OpenAILLM:
     MODEL = "gpt-4o"
     CHAT_MODEL = "gpt-4-turbo"
     EMBEDDING_MODEL = "text-embedding-ada-002"
-    INTENTION_RECOGNITION_MODEL = "gpt-3.5-turbo"
+    INTENTION_RECOGNITION_MODEL = "gpt-4o"
 
     def __init__(self, api_key):
         self.embedding = OpenAI(api_key=api_key, max_retries=3).embeddings
