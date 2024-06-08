@@ -85,7 +85,7 @@ if selected_item == "主页":
     # Load local README.md file
     en_readme, cn_readme = "", ""
 
-    cn_readme_path = os.path.join("README_CN.md")
+    cn_readme_path = os.path.join("README.md")
     if os.path.exists(cn_readme_path):
         with open(cn_readme_path, "r", encoding="utf-8") as f:
             cn_readme = f.read()
