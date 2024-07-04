@@ -2,7 +2,7 @@ import base64
 from typing import Optional, List, Generator, Dict, Any
 import requests
 
-from .prompt import Prompt
+from .prompt import *
 from openai import OpenAI
 
 
@@ -45,7 +45,7 @@ class OpenAILLM:
             model_name: Optional[str] = None
     ) -> LLMAPIResponse:
         messages = [
-            {"role": "system", "content": Prompt.knowledge_base_chatbot()},
+            {"role": "system", "content": KNOWLEDGE_QA_PROMPT},
             *chat_history,
             {"role": "user", "content": f"{context}\n用户问题：{user_question}\n"}
         ]
@@ -70,7 +70,7 @@ class OpenAILLM:
             model_name: Optional[str] = None
     ) -> Generator[str, None, Optional[int]]:  # Generator[YieldType, SendType, ReturnType]
         messages = [
-            {"role": "system", "content": Prompt.knowledge_base_chatbot()},
+            {"role": "system", "content": KNOWLEDGE_QA_PROMPT},
             *chat_history,
             {"role": "user", "content": f"{context}\n用户问题：{user_question}\n"}
         ]
@@ -89,7 +89,7 @@ class OpenAILLM:
 
     def intention_recognition(self, user_question: str, model_name: Optional[str] = None) -> LLMAPIResponse:
         messages = [
-            {"role": "system", "content": Prompt.user_intention_recognition()},
+            {"role": "system", "content": USER_INTENTION_RECOGNITION_PROMPT},
             {"role": "user", "content": user_question}
         ]
         response = self.chat_completion.create(
@@ -124,7 +124,7 @@ class OpenAILLM:
                     "content": [
                         {
                             "type": "text",
-                            "text": Prompt.get_table_content_prompt
+                            "text": PARSE_TABLE_CONTENT_PROMPT
                         },
                         {
                             "type": "image_url",
@@ -160,7 +160,7 @@ class OpenAILLM:
                     "content": [
                         {
                             "type": "text",
-                            "text": Prompt.get_image_content_prompt
+                            "text": PARSE_IMAGE_CONTENT_PROMPT
                         },
                         {
                             "type": "image_url",

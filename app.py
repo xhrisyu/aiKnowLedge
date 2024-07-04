@@ -60,8 +60,8 @@ st.set_page_config(
 )
 
 with st.sidebar:
-    if os.path.exists(os.path.join("img", "aiknow_logo_transparent.png")):
-        st.image(os.path.join("img", "aiknow_logo_transparent.png"))
+    if os.path.exists(os.path.join("img", "aiknow_logo_transparent_2.png")):
+        st.image(os.path.join("img", "aiknow_logo_transparent_2.png"))
         st.caption(
             f"""<p align="right">Version: {VERSION}</p>""",
             unsafe_allow_html=True,
