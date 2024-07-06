@@ -123,32 +123,6 @@ def split_document_by_separator(document: str, split_length: int, overlap_length
     return split_chunks
 
 
-# ------------------- File Path Utils -------------------
-def get_file_name(file_path: str):
-    """
-    Exp: "/root/folder_name/CQI-8_分层过程审核指南中文版知识点.txt" -> "CQI-8_分层过程审核指南中文版知识点.txt"
-    """
-    return os.path.basename(file_path)
-
-
-def get_file_name_no_extension(file_path: str):
-    """
-    Exp: "/root/folder_name/CQI-8_分层过程审核指南中文版知识点.txt" -> "CQI-8_分层过程审核指南中文版知识点"
-    """
-    return os.path.splitext(os.path.basename(file_path))[0]
-
-
-def get_file_extension(file_path: str, with_dot: bool = False, upper: bool = True):
-    """
-    Exp: "/root/folder_name/CQI-8_分层过程审核指南中文版知识点.txt" -> ".txt" | "txt"
-    """
-    if with_dot:
-        file_extension = os.path.splitext(os.path.basename(file_path))[1]
-    else:
-        file_extension = os.path.splitext(os.path.basename(file_path))[1][1:]
-    return file_extension.upper() if upper else file_extension
-
-
 # =================== File Utils ===================
 def file_exist(file_path: str) -> bool:
     return os.path.exists(file_path)
@@ -178,3 +152,53 @@ def convert_numpy_types(obj):
         return obj.tolist()
     else:
         return obj
+
+
+def get_file_name(file_path: str, with_extension: bool = True) -> str:
+    """
+    Get the file name from the file path.
+    :param file_path: The file path.
+    :param with_extension: Whether to include the file extension.
+    :return: The file name.
+    """
+
+    # Exp: "/root/folder_name/CQI-8_分层过程审核指南中文版知识点.txt" -> "CQI-8_分层过程审核指南中文版知识点.txt"
+
+    if with_extension:
+        return os.path.basename(file_path)
+    else:
+        return os.path.splitext(os.path.basename(file_path))[0]
+
+
+def get_file_extension(file_path: str, with_dot: bool, upper_case: bool) -> str:
+    """
+    Get the file extension from the file path.
+    :param file_path: file path
+    :param with_dot: if True, return the extension with dot
+    :param upper_case: if True, return the upper case extension
+    :return: file extension
+    """
+
+    # Exp: "/root/folder_name/CQI-8_分层过程审核指南中文版知识点.txt" -> ".txt" | "txt"
+
+    if with_dot:
+        file_extension = os.path.splitext(os.path.basename(file_path))[1]
+    else:
+        file_extension = os.path.splitext(os.path.basename(file_path))[1][1:]
+
+    return file_extension.upper() if upper_case else file_extension
+
+
+def get_all_file_path_from_folder(folder_path: str, is_absolute_path: bool = True) -> list[str]:
+
+    all_file_paths = []
+    for _root, _dirs, _files in os.walk(folder_path):
+        if is_absolute_path:
+            _root = os.path.abspath(_root)
+        else:
+            _root = os.path.relpath(_root)
+        for _file in _files:
+            all_file_paths.append(str(os.path.join(_root, _file)))  # string type
+
+    return all_file_paths
+

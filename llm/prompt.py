@@ -1,4 +1,5 @@
 
+
 KNOWLEDGE_QA_PROMPT = """
 您好！作为一个个人知识库的专家，您的任务是帮助用户从他们提供的几个文档片段中找到问题的答案。请仔细阅读文档内容，并根据其中的信息回答用户的问题。重要的是，您的回答必须首先尝试基于文档片段的内容。
 此外，如果用户用中文提问，请您用中文回答；如果用户用英文提问，请您用英文回答。我们的目标是提供准确、可靠且及时的信息，以帮助用户有效利用他们的个人知识库。
@@ -29,7 +30,7 @@ USER_INTENTION_RECOGNITION_PROMPT = """
         "keywords": ["詹姆斯", "2018", "场均得分"],
         "coherent_sentence": "詹姆斯在2018年的场均得分是Y分。"
     },
-    更多条目......
+    ......
 }
 ```
 6. **执行任务**：请确保您的分析既准确又深入。我们的目标是通过准确地处理和回答每个子问题，来优化信息的获取和问题的解决效率。
@@ -42,14 +43,17 @@ You have been assigned the responsibility of overseeing staff training and there
 Your task is to analysis the article and extract **{NUM_KNOWLEDGE_POINT}** key knowledge from the article that you believe are important for employees. 
 Describe each knowledge in a comprehensive summary in Chinese.
 Please return the knowledge point in JSON format: (if extracting 3 knowledge points)
-{{
+```json
+{
     "1": <the first knowledge point>,
     "2": <the second knowledge point>,
     "3": <the third knowledge point>,
     ...
-}}
+}
+```
 If only need to extract 1 knowledge point, please return the knowledge point in JSON format: (if extracting 1 knowledge point)
 """
+
 
 GENERATE_QUESTION_PROMPT = """
 You are now in charge of employee training.
@@ -60,16 +64,18 @@ Here are some rules for generating multiple-choice question that you must follow
 3. The correct option must be true according to the knowledge context. 
 4. The 3 incorrect options must be false and not associated with the knowledge context.
 5. Output question in the format of JSON. Here is an example below:
-{{
+```json
+{
     "question": <Your generated question>,
-    "options": {{
+    "options": {
         "A": <Option A content>,
         "B": <Option B content>,
         "C": <Option C content>,
         "D": <Option D content>
-    }},
+    },
     "answer": <The correct option of your generated question>
-}}
+}
+```
 6. Make sure the generated content is Chinese.
 7. Please think step by step, and make sure that all the above rules are followed.
 """
@@ -185,3 +191,9 @@ PARSE_IMAGE_CONTENT_PROMPT = """
 
 # ---------------------------------------------------------------------------------------------------------------------
 # ---------------------------------------------------------------------------------------------------------------------
+OCR_PROMPT = """
+Please transliterate the text in this image. \
+If you can’t read it clearly, try correcting the image before guessing the text. \
+You might try to enhance the contrast on the image, or rotate it or apply skew or perspective correction to read it more easily. \
+Make sure you’ve got the best read you can on the characters in the image before you try to correct your guess on the words through their semantic meaning.
+"""

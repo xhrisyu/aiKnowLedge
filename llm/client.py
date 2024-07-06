@@ -1,9 +1,9 @@
 import base64
-from typing import Optional, List, Generator, Dict, Any
+from typing import Optional, Generator, Any
 import requests
-
-from .prompt import *
 from openai import OpenAI
+
+from .prompt import KNOWLEDGE_QA_PROMPT, USER_INTENTION_RECOGNITION_PROMPT, OCR_PROMPT, PARSE_TABLE_CONTENT_PROMPT
 
 
 class LLMAPIResponse:
@@ -19,8 +19,8 @@ class OpenAILLM:
     INTENTION_RECOGNITION_MODEL = "gpt-4o"
 
     def __init__(self, api_key):
-        self.embedding = OpenAI(api_key=api_key, max_retries=3).embeddings
-        self.chat_completion = OpenAI(api_key=api_key, max_retries=3).chat.completions
+        self._embedding = OpenAI(api_key=api_key, max_retries=3).embeddings
+        self._chat_completion = OpenAI(api_key=api_key, max_retries=3).chat.completions
         self._stream_chat_token_usage = 0
 
     @property
@@ -29,9 +29,9 @@ class OpenAILLM:
 
     def get_text_embedding(self, text: str, embedding_model: Optional[str] = None) -> LLMAPIResponse:
         if not embedding_model:
-            response = self.embedding.create(model=self.EMBEDDING_MODEL, input=text)
+            response = self._embedding.create(model=self.EMBEDDING_MODEL, input=text)
         else:
-            response = self.embedding.create(model=embedding_model, input=text)
+            response = self._embedding.create(model=embedding_model, input=text)
 
         token_usage = response.usage.total_tokens
         return LLMAPIResponse(response.data[0].embedding, token_usage)
@@ -40,7 +40,7 @@ class OpenAILLM:
             self,
             user_question: str,
             context: Optional[str],
-            chat_history: List[Dict],
+            chat_history: list[dict],
             temperature: Optional[float] = 0.8,
             model_name: Optional[str] = None
     ) -> LLMAPIResponse:
@@ -49,7 +49,7 @@ class OpenAILLM:
             *chat_history,
             {"role": "user", "content": f"{context}\n用户问题：{user_question}\n"}
         ]
-        response = self.chat_completion.create(
+        response = self._chat_completion.create(
             model=self.CHAT_MODEL if not model_name else model_name,
             messages=messages,
             temperature=temperature,
@@ -65,7 +65,7 @@ class OpenAILLM:
             self,
             user_question: str,
             context: Optional[str],
-            chat_history: List[Dict],
+            chat_history: list[dict],
             temperature: Optional[float] = 0.8,
             model_name: Optional[str] = None
     ) -> Generator[str, None, Optional[int]]:  # Generator[YieldType, SendType, ReturnType]
@@ -74,7 +74,7 @@ class OpenAILLM:
             *chat_history,
             {"role": "user", "content": f"{context}\n用户问题：{user_question}\n"}
         ]
-        response_stream = self.chat_completion.create(
+        response_stream = self._chat_completion.create(
             model=self.CHAT_MODEL if not model_name else model_name,
             messages=messages,
             temperature=temperature,
@@ -92,7 +92,7 @@ class OpenAILLM:
             {"role": "system", "content": USER_INTENTION_RECOGNITION_PROMPT},
             {"role": "user", "content": user_question}
         ]
-        response = self.chat_completion.create(
+        response = self._chat_completion.create(
             model=self.INTENTION_RECOGNITION_MODEL if not model_name else model_name,
             messages=messages,
             response_format={"type": "json_object"},
@@ -138,44 +138,32 @@ class OpenAILLM:
             ],
             "max_tokens": 2000
         }
-
         response = requests.post("https://api.client.com/v1/chat/completions", headers=headers, json=payload)
         response_json = response.json()
         description = response_json["choices"][0]["message"]["content"]
         return description
 
-    def get_image_content(self, image_path: str, api_key: str) -> str:
+    def ocr(self, image_path: str) -> str:
         base64_image = self.encode_image(image_path)
-
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}"
-        }
-
-        payload = {
-            "model": "gpt-4-vision-preview",
-            "messages": [
+        response = self._chat_completion.create(
+            model=self.MODEL,
+            messages=[
+                {"role": "system", "content": OCR_PROMPT},
                 {
                     "role": "user",
                     "content": [
                         {
-                            "type": "text",
-                            "text": PARSE_IMAGE_CONTENT_PROMPT
-                        },
-                        {
                             "type": "image_url",
                             "image_url": {
-                                "url": f"data:image/jpeg;base64,{base64_image}"
+                                "url": f"data:image/png;base64,{base64_image}",
+                                "detail": "high"
                             }
                         }
                     ]
                 }
             ],
-            "max_tokens": 2000
-        }
-
-        response = requests.post("https://api.client.com/v1/chat/completions", headers=headers, json=payload)
-        response_json = response.json()
-        description = response_json["choices"][0]["message"]["content"]
-        return description
+            # response_format={"type": "json_object"},
+            temperature=0.3,
+        )
+        return response.choices[0].message.content
 
