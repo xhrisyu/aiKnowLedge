@@ -9,9 +9,9 @@ from streamlit_tags import st_tags
 from st_aggrid import AgGrid, JsCode
 from st_aggrid.grid_options_builder import GridOptionsBuilder
 
-from views.constants import *
-from utils.tools import file_exist, convert_numpy_types, get_file_extension
-from server.api_paths import APIPaths
+from aiknowledge.utils.tools import file_exist, convert_numpy_types, get_file_extension
+from aiknowledge.backend.api_paths import APIPaths
+from aiknowledge.webui.constants import MONGO_DATABASE_NAME, MONGO_COLLECTION_DEFAULT_NAME, QDRANT_COLLECTION_DEFAULT_NAME, SUPPORTED_EXTS
 
 TF_cell_renderer = JsCode("""function(params) {if(params.value==true){return '✓'}else{return '×'}}""")
 list_cell_renderer = JsCode("""
@@ -49,7 +49,7 @@ def config_aggrid(
 
 
 def kb_management_page():
-    # Get document data from mongo DB
+    # Get doc data from mongo DB
     response = requests.get(
         url=APIPaths.get_full_path(APIPaths.KB_GET),
         params={"database_name": MONGO_DATABASE_NAME, "collection_name": MONGO_COLLECTION_DEFAULT_NAME}
@@ -230,7 +230,7 @@ def kb_management_page():
                     # Remove file from local disk
                     remove_local_file = False
                     if in_local_disk:
-                        # Check other inserted kb file have the same file location
+                        # Check other inserted rag file have the same file location
                         if len(kb_dataframe[kb_dataframe["location"] == row["location"]]) == 1:
                             os.remove(row["location"])
                             remove_local_file = True
@@ -275,11 +275,11 @@ def kb_management_page():
                 # Read file and get metadata
                 uploaded_file_bytes = uploaded_file.getvalue()  # read file as bytes
                 uploaded_file_name = uploaded_file.name
-                file_extension = get_file_extension(uploaded_file_name, upper=True, with_dot=False)
+                file_extension = get_file_extension(uploaded_file_name, upper_case=True, with_dot=False)
 
                 # Create local directories
                 local_doc_dir = os.path.join(os.getcwd(), "uploaded_file")  # os.getcwd()当前工程绝对路径
-                local_uploaded_file_dir = os.path.join(local_doc_dir, "kb")
+                local_uploaded_file_dir = os.path.join(local_doc_dir, "rag")
                 if not os.path.exists(local_doc_dir):
                     os.makedirs(local_doc_dir)
                 if not os.path.exists(local_uploaded_file_dir):

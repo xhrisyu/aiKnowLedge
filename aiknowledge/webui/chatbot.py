@@ -1,18 +1,17 @@
 """
 Chatbot Page
 
-$ Retrieving documents use qdrant client directly, not through FastAPI server [http request is slow]
-$ QA request use llm client directly, not through FastAPI server [streaming output is hard to implement]
+$ Retrieving documents use qdrant client directly, not through FastAPI backend [http request is slow]
+$ QA request use llm client directly, not through FastAPI backend [streaming output is hard to implement]
 """
 import json
 import time
 import streamlit as st
 from streamlit_float import float_init, float_css_helper, float_parent
 
-from config import app_config
-from views.constants import *
-from llm import OpenAILLM
-from db import QAQdrantClient
+from aiknowledge.config import app_config
+from aiknowledge.llm import OpenAILLM
+from aiknowledge.db import QAQdrantClient
 
 
 @st.cache_resource
@@ -81,7 +80,7 @@ def chatbot_page():
             with st.chat_message("assistant"):
                 st.session_state.user_intention = {}  # save llm intention recognition result
                 st.session_state.user_recognized_question = []  # save llm recognized questions
-                st.session_state.retrieved_docs = []  # save retrieved document from vecdb
+                st.session_state.retrieved_docs = []  # save retrieved doc from vecdb
                 st.session_state.context = ""  # formatted context for AI response
 
                 # Intention recognition

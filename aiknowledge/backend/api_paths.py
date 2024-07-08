@@ -1,4 +1,4 @@
-from config import app_config
+from aiknowledge.config import app_config
 
 
 class APIPaths:
@@ -13,10 +13,10 @@ class APIPaths:
     def get_relative_path(cls, path):
         return path
 
-    KB_GET = "/kb/get"
-    KB_INSERT = "/kb/insert"
-    KB_UPDATE = "/kb/update"
-    KB_REMOVE = "/kb/remove"
+    KB_GET = "/rag/get"
+    KB_INSERT = "/rag/insert"
+    KB_UPDATE = "/rag/update"
+    KB_REMOVE = "/rag/remove"
 
     VEC_INSERT = "/vec/insert"
     VEC_GET = "/vec/get"

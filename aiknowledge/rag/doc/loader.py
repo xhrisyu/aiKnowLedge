@@ -2,11 +2,11 @@ from uuid import uuid4
 from langchain_community.document_loaders import TextLoader, PyPDFium2Loader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from llm.client import OpenAILLM
-from utils.tools import get_file_name, get_file_extension, convert_escaped_chars_to_original_chars
+from aiknowledge.llm import OpenAILLM
+from aiknowledge.utils.tools import get_file_name, get_file_extension, convert_escaped_chars_to_original_chars
 
 
-class TextVectorProcessor:
+class DocumentLoader:
     """
     Class for processing text vectors
     1. Convert text to vector
@@ -28,7 +28,7 @@ class TextVectorProcessor:
         self.overlap_size = overlap_size
         self.separators = separators
         self.embedding_client = embedding_client
-        self.file_extension = get_file_extension(file_path, with_dot=False, upper=True)
+        self.file_extension = get_file_extension(file_path, with_dot=False, upper_case=True)
 
     def process(self):
         # Load file by LangChain:
@@ -57,7 +57,7 @@ class TextVectorProcessor:
             document)  # structure: [Document(page_content="**chunk_1**", metadata={"source": "file_abs_path"}), ...]
         print(split_document)
 
-        # Add metadata to each document, and reconstruct data to fit the format of Qdrant insertion
+        # Add metadata to each doc, and reconstruct data to fit the format of Qdrant insertion
         vector_points = []
         for idx, doc in enumerate(split_document):
             vec_id = str(uuid4())  # Generate vector_id in Vector DB by uuid
@@ -89,7 +89,7 @@ class TextVectorProcessor:
 # if __name__ == "__main__":
 #     # Example usage
 #     # file_path = "/Users/yu/Projects/AIGC/aiknowledge/uploaded_file/uploaded_file_temp/洛杉矶湖人.pdf"
-#     file_path = "uploaded_file/kb/NBA - 维基百科，自由的百科全书.pdf"
+#     file_path = "uploaded_file/rag/NBA - 维基百科，自由的百科全书.pdf"
 #     file_extension = "PDF"
 #     chunk_size = 200
 #     overlap_size = 50

@@ -3,9 +3,9 @@ import streamlit as st
 from streamlit_option_menu import option_menu
 import hmac
 
-from views.chatbot import chatbot
-from views.knowledge_base import kb_management
-from views.quiz_generator import quiz_generator
+from aiknowledge.webui.chatbot import chatbot_page
+from aiknowledge.webui.kb_management import kb_management_page
+from aiknowledge.webui.quiz_generator import quiz_generator_page
 
 VERSION = "1.0.0"
 
@@ -60,8 +60,8 @@ st.set_page_config(
 )
 
 with st.sidebar:
-    if os.path.exists(os.path.join("img", "aiknow_logo_transparent_2.png")):
-        st.image(os.path.join("img", "aiknow_logo_transparent_2.png"))
+    if os.path.exists(os.path.join("webui/src/img", "aiknow_logo_transparent_2.png")):
+        st.image(os.path.join("webui/src/img", "aiknow_logo_transparent_2.png"))
         st.caption(
             f"""<p align="right">Version: {VERSION}</p>""",
             unsafe_allow_html=True,
@@ -69,15 +69,14 @@ with st.sidebar:
 
     selected_item = option_menu(
         menu_title="",
-        # options=["主页", "问答", "上传", "管理"],
         options=["主页", "问答助手", "知识管理", "习题生成"],
         icons=["house", "robot", "cloud-upload", "clipboard-data", "box"],
         menu_icon="cast",
         default_index=0,
     )
 
-if not check_password():
-    st.stop()
+# if not check_password():
+#     st.stop()
 
 if selected_item == "主页":
     st.title("Welcome to aiKnowLedge🤓")
@@ -85,12 +84,12 @@ if selected_item == "主页":
     # Load local README.md file
     en_readme, cn_readme = "", ""
 
-    cn_readme_path = os.path.join("README.md")
+    cn_readme_path = os.path.join("../README.md")
     if os.path.exists(cn_readme_path):
         with open(cn_readme_path, "r", encoding="utf-8") as f:
             cn_readme = f.read()
 
-    en_readme_path = os.path.join("README_EN.md")
+    en_readme_path = os.path.join("../README_EN.md")
     if os.path.exists(en_readme_path):
         with open(en_readme_path, "r", encoding="utf-8") as f:
             en_readme = f.read()
@@ -102,10 +101,10 @@ if selected_item == "主页":
         tab2.markdown(en_readme)
 
 if selected_item == "问答助手":
-    chatbot.chatbot_page()
+    chatbot_page()
 
 if selected_item == "知识管理":
-    kb_management.kb_management_page()
+    kb_management_page()
 
 if selected_item == "习题生成":
-    quiz_generator.quiz_generator_page()
+    quiz_generator_page()

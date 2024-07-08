@@ -8,5 +8,5 @@ LOADER_DICT = {
 SUPPORTED_EXTS = [ext for sublist in LOADER_DICT.values() for ext in sublist]
 
 MONGO_DATABASE_NAME = "aiknowledge"
-MONGO_COLLECTION_DEFAULT_NAME = "kb"
+MONGO_COLLECTION_DEFAULT_NAME = "rag"
 QDRANT_COLLECTION_DEFAULT_NAME = "general"

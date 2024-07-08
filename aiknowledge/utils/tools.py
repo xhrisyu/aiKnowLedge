@@ -24,7 +24,7 @@ def convert_chat_message_to_str(chat_history: List[Dict]) -> str:
 
 def get_company_document_code(document_name: str) -> str:
     """
-    Get document code from intflex document name
+    Get doc code from intflex doc name
     """
     # num_part = document_name.split("-")[-1][:3]
     # document_code = "-".join(document_name.split("-")[:-1]) + "-" + num_part

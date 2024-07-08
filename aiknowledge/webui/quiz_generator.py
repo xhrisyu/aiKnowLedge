@@ -8,8 +8,8 @@
 """
 import streamlit as st
 
-from config import app_config
-from llm.generator import QuizGenerator
+from aiknowledge.config import app_config
+from aiknowledge.llm import QuizGenerator
 
 
 def quiz_generator_page():

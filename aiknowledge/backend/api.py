@@ -7,13 +7,12 @@ import asyncio
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 
-from config import app_config
-from db import QAQdrantClient
-from llm import OpenAILLM
-from utils.vec_processor import TextVectorProcessor
-
-from server.api_paths import APIPaths
-from server.models import *
+from aiknowledge.config import app_config
+from aiknowledge.db import QAQdrantClient
+from aiknowledge.llm import OpenAILLM
+from aiknowledge.rag.doc.loader import DocumentLoader
+from aiknowledge.backend.api_paths import APIPaths
+from aiknowledge.backend.models import *
 
 
 @asynccontextmanager
@@ -116,7 +115,7 @@ async def remove_kb_data_by_id(params: KBRemoveParams):
 async def insert_vec_data(params: VecInsertParams):
     try:
         # Preprocess text and convert to vectors
-        vec_processor = TextVectorProcessor(
+        vec_processor = DocumentLoader(
             document_id=params.data.doc_id,
             file_path=params.data.file_path,
             chunk_size=params.data.chunk_size,
@@ -216,5 +215,5 @@ if __name__ == '__main__':
     uvicorn.run("api:app", host=fastapi_config["host"], port=fastapi_config["port"], reload=True)
 
 # terminal command:
-# uvicorn server.api:app --host 127.0.0.1 --port 8500  # 生产
-# uvicorn server.api:app --host 127.0.0.1 --port 8500 --reload  # 测试
+# uvicorn backend.api:app --host 127.0.0.1 --port 8500  # 生产
+# uvicorn backend.api:app --host 127.0.0.1 --port 8500 --reload  # 测试

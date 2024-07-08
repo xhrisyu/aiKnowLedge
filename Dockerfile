@@ -27,18 +27,18 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt --progress-bar off
 
 # Copy the rest of the application
-COPY entrypoint.sh /aiknowledge/entrypoint.sh
+COPY run.sh /aiknowledge/run.sh
 COPY . .
 
 # Expose the port the Streamlit app runs on
 EXPOSE 8501
 
 # Make the entrypoint script executable, Run the entrypoint script
-RUN chmod +x /aiknowledge/entrypoint.sh
-CMD ["bash", "/aiknowledge/entrypoint.sh"]
+RUN chmod +x /aiknowledge/run.sh
+CMD ["bash", "/aiknowledge/run.sh"]
 
 # Run the application
-#CMD uvicorn server.api:app --host 127.0.0.1 --port 8500
-#CMD streamlit run app.py --server.address=0.0.0.0 --server.port=8501
-#CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
-#CMD ["sh", "-c", "streamlit run app.py --server.address=0.0.0.0 --server.port=8501 & uvicorn server.api:app --host 127.0.0.1 --port 8500"]
+#CMD uvicorn backend.api:app --host 127.0.0.1 --port 8500
+#CMD streamlit run app.py --backend.address=0.0.0.0 --backend.port=8501
+#CMD ["streamlit", "run", "app.py", "--backend.port=8501", "--backend.address=0.0.0.0"]
+#CMD ["sh", "-c", "streamlit run app.py --backend.address=0.0.0.0 --backend.port=8501 & uvicorn backend.api:app --host 127.0.0.1 --port 8500"]

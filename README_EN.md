@@ -65,12 +65,12 @@ Upload a paragraph to generate questions and answers.
 
 3. Start frontend (Streamlit):
    ```shell
-   streamlit run app.py --server.address=127.0.0.1 --server.port=8501
+   streamlit run app.py --backend.address=127.0.0.1 --backend.port=8501
    ```
 
 4. Start backend (FastAPI):
    ```shell
-   uvicorn server.api:app --host 127.0.0.1 --port 8500
+   uvicorn backend.api:app --host 127.0.0.1 --port 8500
    ```
 
 ## Docker deployment
