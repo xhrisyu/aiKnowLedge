@@ -54,7 +54,7 @@ class QAQdrantClient(QdrantClient):
 
         self._collection_name = collection_name
 
-    def insert_vector(self, vec_id: str, vector: List[float], payload: dict) -> int:
+    def insert_vector(self, vec_id: str, vector: List[float], payload: Optional[dict] = None) -> int:
         """
         Insert the embedding vector
         :param vec_id: 's id in vecdb
@@ -120,6 +120,24 @@ class QAQdrantClient(QdrantClient):
         except Exception as e:
             print(f"Qdrant remove vectors error: {e}")
             return 0
+
+    def remove_vectors_by_id(self, vec_ids: str | list[str]) -> bool:
+        """
+        Remove vectors by vec_id
+        :param vec_ids: vector id or list of vector id
+        :return: the number of removed vectors
+        """
+        try:
+            self.delete(
+                collection_name=self._collection_name,
+                points_selector=models.PointIdsList(
+                    points=[vec_ids] if isinstance(vec_ids, str) else vec_ids
+                ),
+            )
+            return True
+        except Exception as e:
+            print(f"Qdrant remove vectors error: {e}")
+            return False
 
     def retrieve_similar_vectors_simply(
             self,
@@ -339,21 +357,6 @@ class QAQdrantClient(QdrantClient):
             retrieved_infos.append(info)
 
         return retrieved_infos
-
-    # def retrieve_similar_note_vec_ids(self, query_vec: List[float], limit: int = 5) -> list[UUID]:
-    #     points = self.search(
-    #         collection_name=self._collection_name,
-    #         query_vector=query_vec,
-    #         limit=limit
-    #     )
-    #
-    #     # Vector IDs of similar notes
-    #     vec_ids = list(map(
-    #         lambda point: UUID(point.id),
-    #         points
-    #     ))
-    #
-    #     return vec_ids
 
     def drop_collection(self) -> None:
         # Delete collection

@@ -10,9 +10,9 @@ from bson.objectid import ObjectId
 from aiknowledge.config import app_config
 from aiknowledge.db import QAQdrantClient
 from aiknowledge.llm import OpenAILLM
-from aiknowledge.rag.store.loader import DocumentLoader
 from aiknowledge.backend.api_paths import APIPaths
 from aiknowledge.backend.models import *
+from aiknowledge.rag.store.loader import load_and_split
 
 
 @asynccontextmanager
@@ -115,20 +115,17 @@ async def remove_kb_data_by_id(params: KBRemoveParams):
 async def insert_vec_data(params: VecInsertParams):
     try:
         # Preprocess text and convert to vectors
-        vec_processor = DocumentLoader(
-            document_id=params.data.doc_id,
+        doc_metadata, chunk_data_list = load_and_split(
             file_path=params.data.file_path,
             chunk_size=params.data.chunk_size,
             overlap_size=params.data.overlap_size,
             separators=params.data.separators,
-            embedding_client=app.state.llm_client
         )
-        vectors_data = vec_processor.process()
 
         # Insert vectors to VecDB
         vecdb_client = app.state.qdrant_client
         vecdb_client.checkout_collection(params.vecdb_collection_name)
-        inserted_num = vecdb_client.insert_vectors(vectors_data)
+        inserted_num = vecdb_client.insert_vectors()
         return JSONResponse(content={"inserted_num": inserted_num})
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

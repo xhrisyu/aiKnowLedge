@@ -29,5 +29,7 @@ def reset_chunk_in_vecdb_db(
     return result.modified_count
 
 
-if __name__ == "__main__":
-    reset_chunk_in_vecdb_db("intflex_audit", "chunk_data")
+
+
+# if __name__ == "__main__":
+#     reset_chunk_in_vecdb_db("intflex_audit", "chunk_data")

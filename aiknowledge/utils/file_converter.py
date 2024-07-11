@@ -83,6 +83,18 @@ def docx2markdown(
         title_pattern = r'^\s*\**\s*(\d+(\.\d+)*\s?.+?)\s*\**\s*$'
         markdown_text = re.sub(title_pattern, replace_with_header, markdown_text, flags=re.MULTILINE)
 
+        # Remove image caption
+        markdown_text = re.sub(r'!\[[^\]]*\]\((\./image/image_[^\)]+)\)', r'![](\1)', markdown_text)
+
+        # Replace the redundant line breaks
+        markdown_text = markdown_text.replace("\n\n\n", "\n\n").replace("\n\n\n", "\n\n")
+
+        # if the space appear behind the #, skip
+        # else delete the redundant space
+        markdown_text = re.sub(r'(?<!#) +', '', markdown_text)
+        markdown_text = re.sub(r'(?<=#) +', ' ', markdown_text)
+
+
         # Save markdown file
         with open(os.path.join(root_output_dir, f"{file_name}.md"), "w", encoding="utf-8") as file:
             file.write(markdown_text)

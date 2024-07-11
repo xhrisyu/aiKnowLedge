@@ -84,11 +84,20 @@ class BM25Searcher:
         Convert search result to dict.
         :param hits: search result
         :return: docid and score
-        > structure:
+        > hits structure:
         {
             <docid>: <score>,
             ...
         }
+        > return structure:
+        [
+            {
+                "doc_id": <doc_id>,
+                "chunk_id": <chunk_id>,
+                "score": <score>,
+            },
+            ...
+        ]
         """
         result = []
         if hits:

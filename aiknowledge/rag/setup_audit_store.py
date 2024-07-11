@@ -29,15 +29,19 @@ def load_raw_document_and_preprocess():
             if file.endswith(".docx"):
                 docx_file_list.append(os.path.abspath(os.path.join(root, file)))
 
-    pprint(docx_file_list)
+    # sort file name
+    docx_file_list.sort()
 
     for docx_file in docx_file_list:
         file_name = get_file_name(docx_file, with_extension=False)
-        if not os.path.exists(os.path.join(store_folder, file_name)):
-            print(f"Converting {docx_file} to markdown file...")
-            docx2markdown(docx_file, output_dir=os.path.join(store_folder, file_name))
-        else:
-            print(f"{file_name} already exists in the store folder.")
+        # if not os.path.exists(os.path.join(store_folder, file_name)):
+        #     print(f"Converting {docx_file} to markdown file...")
+        #     docx2markdown(docx_file, output_dir=os.path.join(store_folder, file_name))
+        # else:
+        #     print(f"{file_name} already exists in the store folder.")
+
+        print(f"Converting {docx_file} to markdown file...")
+        docx2markdown(docx_file, output_dir=os.path.join(store_folder, file_name))
 
 
 def split_chunk_and_store(chunk_size: int = 250, overlap_size: int = 60, separators=None):
@@ -53,6 +57,7 @@ def split_chunk_and_store(chunk_size: int = 250, overlap_size: int = 60, separat
             if file.endswith(".md"):
                 md_file_list.append(os.path.abspath(os.path.join(root, file)))
 
+    md_file_list.sort()
     # pprint(md_file_list)
 
     for md_file in md_file_list:

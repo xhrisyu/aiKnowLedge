@@ -121,7 +121,3 @@ def construct_lucene_index(
               --storeRaw"
               )
 
-
-def store_qa_document():
-    pass
-

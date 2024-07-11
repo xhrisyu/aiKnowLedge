@@ -17,9 +17,6 @@ def load_and_split(
     doc_name = get_file_name(file_path, with_extension=False)
     doc_type = get_file_extension(file_path, with_dot=False, upper_case=True)
 
-    # Generate the unique doc_id
-    doc_id = str(uuid4())
-
     # Load file (by LangChain)
     if doc_type == "TXT":
         loader = TextLoader(file_path)
@@ -51,8 +48,8 @@ def load_and_split(
 
     # Format document metadata
     """
-    document = {
-        "doc_id": uuid,
+    doc_metadata = {
+        "doc_id": <uuid4>,
         "doc_name": <name of the original file>,
         "doc_type": <PDF, XLSX, DOCX, ...>,
         "chunk_size": int,
@@ -62,6 +59,8 @@ def load_and_split(
         "location": <local file path>,
     }
     """
+    # Generate the unique doc_id, each file has a unique doc_id
+    doc_id = str(uuid4()),
     doc_metadata = {
         "doc_id": doc_id,
         "doc_name": doc_name,
@@ -75,9 +74,10 @@ def load_and_split(
     # Add extra data to each chunk
     """
     chunk = {
-        "doc_id": uuid,
+        "doc_id": <uuid4>,
         "doc_name": <name of the original file>,
-        "chunk_id": <chunk seq in this doc, same doc_id file have multiple chunks>,
+        "chunk_id": <uuid4>,
+        "chunk_seq": <chunk sequence in this doc, same doc_id file have multiple chunks>,
         "content": "这是当前chunk的原文片段",
         "in_vector_db": <True of False>, 
     }
@@ -87,7 +87,8 @@ def load_and_split(
         payload = {
             "doc_id": doc_id,
             "doc_name": doc_name,
-            "chunk_id": idx + 1,
+            "chunk_id": str(uuid4()),
+            "chunk_seq": idx + 1,
             "content": doc.page_content,
             "in_vector_db": False
         }

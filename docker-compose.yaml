@@ -1,36 +1,36 @@
 services:
   qdrant:
     image: qdrant/qdrant:latest
-    container_name: aiknowledge-qdrant
+    container_name: intflex_audit_qdrant
     volumes:
       - "./qdrant_storage:/qdrant/storage:z"
     ports:
       - "8502:6333"
     networks:
-      - aiknowledge
+      - intflex_audit
 
   mongo:
     image: mongo:latest
-    container_name: aiknowledge-mongo
+    container_name: intflex_audit_mongo
     volumes:
       - "./mongo_storage:/data/db:z"
     ports:
       - "8503:27017"
     networks:
-      - aiknowledge
+      - intflex_audit
 
-  aiknowledge:
-    image: aiknowledge:latest
-    container_name: aiknowledge-streamlit
+  intflex_audit:
+    image: intflex_audit:latest
+    container_name: intflex_audit_streamlit
     depends_on:
       - qdrant
       - mongo
     volumes:
-      - "./uploaded_file:/aiknowledge/uploaded_file:z"
+      - "./uploaded_file:/intflex_audit/uploaded_file:z"
     ports:
       - "8501:8501"
     networks:
-      - aiknowledge
+      - intflex_audit
 
 volumes:
   qdrant_storage:
@@ -38,5 +38,5 @@ volumes:
   uploaded_file:
 
 networks:
-  aiknowledge:
+  intflex_audit:
     driver: bridge

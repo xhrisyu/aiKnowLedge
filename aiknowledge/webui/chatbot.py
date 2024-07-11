@@ -199,6 +199,7 @@ def chatbot_page():
 
                     time1 = time.time()
                     keyword_search_results = searcher.search(user_input, top_k)
+
                     # Get original content from MongoDB (base on chunk_id and doc_name)
                     for keyword_search_result in keyword_search_results:
                         doc_id = keyword_search_result["doc_id"]
