@@ -2,21 +2,30 @@ from pydantic import BaseModel
 from typing import List, Optional, Union
 
 
-class KBInsertItem(BaseModel):
-    file_name: str
-    file_extension: str
+class KBInsertMetaData(BaseModel):
+    doc_id: str
+    doc_name: str
+    doc_type: str
     chunk_size: int
     overlap_size: int
     separators: Optional[List[str]]
     create_time: str
     location: str
+
+
+class KBInsertChunkData(BaseModel):
+    doc_id: str
+    doc_name: str
+    create_time: str
+    chunk_id: int
+    content: str
     in_vector_db: bool
 
 
 class KBInsertParams(BaseModel):
     database_name: str
     collection_name: str
-    data: KBInsertItem
+    data: KBInsertMetaData | KBInsertChunkData
 
 
 class KBUpdateParams(BaseModel):

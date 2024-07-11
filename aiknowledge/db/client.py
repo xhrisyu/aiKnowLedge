@@ -1,5 +1,6 @@
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Sequence, Union, Any
 from qdrant_client import QdrantClient, models
+from qdrant_client.conversions import common_types as types
 from qdrant_client.http.models import Filter, FieldCondition, MatchValue
 from qdrant_client.models import PointStruct, VectorParams, Distance
 
@@ -34,7 +35,23 @@ class QAQdrantClient(QdrantClient):
         ))
 
     def checkout_collection(self, collection_name: str) -> None:
-        # Set the current collection name
+        """
+        Set the current collection name
+        :param collection_name:
+        :return:
+        """
+
+        # Check if the collection exists
+        if collection_name not in self.collection_names:
+            self.recreate_collection(
+                collection_name=collection_name,
+                vectors_config=VectorParams(
+                    size=self._embedding_dim,
+                    distance=Distance.COSINE
+                )
+            )
+            print(f"Not found collection <{collection_name}>. Recreated.")
+
         self._collection_name = collection_name
 
     def insert_vector(self, vec_id: str, vector: List[float], payload: dict) -> int:
@@ -103,6 +120,47 @@ class QAQdrantClient(QdrantClient):
         except Exception as e:
             print(f"Qdrant remove vectors error: {e}")
             return 0
+
+    def retrieve_similar_vectors_simply(
+            self,
+            query_vector: List[float],
+            top_k: int = 3,
+            sim_lower_bound: float = 0.6
+    ) -> List[Dict]:
+        """
+        Retrieve similar vectors with payload
+
+        :param query_vector: query vector
+        :param top_k: number of similar vectors to retrieve
+        :param sim_lower_bound: similarity lower bound
+        :return: list of PointStruct information
+        """
+
+        """
+        > info structure:
+        {
+            "doc_id": <doc_id>,
+            "score": <similarity, [0, 1]>
+        }
+        """
+        points = self.search(
+            collection_name=self._collection_name,
+            query_vector=query_vector,
+            limit=top_k,
+            with_payload=True,
+            with_vectors=False,
+            score_threshold=sim_lower_bound,
+        )
+        retrieved_infos = []
+        for point in points:
+            info = {
+                "doc_id": point.id,
+                "chunk_id": point.payload['chunk_id'],
+                "doc_name": point.payload['doc_name'],
+                "score": point.score,
+            }
+            retrieved_infos.append(info)
+        return retrieved_infos
 
     def retrieve_similar_vectors(
             self,

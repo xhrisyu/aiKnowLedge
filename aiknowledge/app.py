@@ -69,8 +69,10 @@ with st.sidebar:
 
     selected_item = option_menu(
         menu_title="",
-        options=["主页", "问答助手", "知识管理", "习题生成"],
-        icons=["house", "robot", "cloud-upload", "clipboard-data", "box"],
+        # options=["主页", "问答助手", "知识管理", "习题生成"],
+        # icons=["house", "robot", "cloud-upload", "clipboard-data", "box"],
+        options=["主页", "问答助手"],
+        icons=["house", "robot", "cloud-upload"],
         menu_icon="cast",
         default_index=0,
     )
@@ -103,8 +105,8 @@ if selected_item == "主页":
 if selected_item == "问答助手":
     chatbot_page()
 
-if selected_item == "知识管理":
-    kb_management_page()
-
-if selected_item == "习题生成":
-    quiz_generator_page()
+# if selected_item == "知识管理":
+#     kb_management_page()
+#
+# if selected_item == "习题生成":
+#     quiz_generator_page()

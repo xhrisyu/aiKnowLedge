@@ -49,7 +49,7 @@ def config_aggrid(
 
 
 def kb_management_page():
-    # Get doc data from mongo DB
+    # Get store data from mongo DB
     response = requests.get(
         url=APIPaths.get_full_path(APIPaths.KB_GET),
         params={"database_name": MONGO_DATABASE_NAME, "collection_name": MONGO_COLLECTION_DEFAULT_NAME}

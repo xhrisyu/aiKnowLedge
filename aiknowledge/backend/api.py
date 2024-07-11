@@ -10,7 +10,7 @@ from bson.objectid import ObjectId
 from aiknowledge.config import app_config
 from aiknowledge.db import QAQdrantClient
 from aiknowledge.llm import OpenAILLM
-from aiknowledge.rag.doc.loader import DocumentLoader
+from aiknowledge.rag.store.loader import DocumentLoader
 from aiknowledge.backend.api_paths import APIPaths
 from aiknowledge.backend.models import *
 

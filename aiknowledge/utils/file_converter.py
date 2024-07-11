@@ -14,17 +14,20 @@ Other. Exam paper processing
 
 from typing import Optional
 
+from tqdm import tqdm
+import io
+import os
+import json
+import re
+import base64
+from pathlib import Path
+import subprocess
 import cv2
 import numpy as np
 from pdf2image import convert_from_path
-import os
 from PIL import Image, ImageEnhance, ImageFilter
 import fitz
-from tqdm import tqdm
-import re
-import io
 import pytesseract
-import json
 
 from docx import Document
 from docx.document import Document as _Document
@@ -36,6 +39,95 @@ from docx.text.paragraph import Paragraph
 from .tools import get_file_name
 
 SUPPORTED_IMAGE_TYPES = ['png', 'jpeg']
+
+
+def docx2markdown(
+    docx_file_abs_path: str,
+    output_dir: str
+):
+    def extract_and_save_images(markdown_text: str, root_output_dir: str, file_name: str):
+        # Create output folder
+        image_output_dir = os.path.join(root_output_dir, "image")
+        Path(root_output_dir).mkdir(parents=True, exist_ok=True)
+        Path(image_output_dir).mkdir(parents=True, exist_ok=True)
+
+        # Using Regular Expression to match base64 image data
+        image_pattern = re.compile(r'(["(])data:image/(png|jpeg|x-emf);base64,([^")]+)([")])')
+        matches = image_pattern.findall(markdown_text)
+
+        # Process each matches
+        for i, (quote_start, image_type, base64_data, quote_end) in enumerate(matches):
+            # Decode base64 image
+            image_data = base64.b64decode(base64_data)
+
+            # Get image file name & save image
+            image_file_path = f"{image_output_dir}/image_{i}.{image_type}"
+            with open(image_file_path, "wb") as file:
+                file.write(image_data)
+
+            # Generate the relative path
+            image_file_relative_path = f"./image/image_{i}.{image_type}"
+
+            # Replace base64 image with file path in markdown
+            markdown_text = markdown_text.replace(
+                f'{quote_start}data:image/{image_type};base64,{base64_data}{quote_end}',
+                f'{quote_start}{image_file_relative_path}{quote_end}'
+            )
+
+        # Process title level
+        # ^ 表示行的开始
+        # \*\* 表示匹配两个星号
+        # (\d+(\.\d+)*\s? .+?) 表示匹配一个或多个数字和小数点，后跟一个可选的空格和任意字符
+        # \*\* 表示匹配结束的两个星号
+        # $ 表示行的结束
+        title_pattern = r'^\s*\**\s*(\d+(\.\d+)*\s?.+?)\s*\**\s*$'
+        markdown_text = re.sub(title_pattern, replace_with_header, markdown_text, flags=re.MULTILINE)
+
+        # Save markdown file
+        with open(os.path.join(root_output_dir, f"{file_name}.md"), "w", encoding="utf-8") as file:
+            file.write(markdown_text)
+
+    def get_markdown_from_command(command):
+        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise Exception(f"Command failed: {result.stderr}")
+        return result.stdout
+
+    def replace_with_header(match):
+        # Get the number of the header
+        header_text = match.group(1).strip()
+
+        # Check if the header contains any of the following punctuation
+        check_items = [",", "，", "。", ";", "；"]
+        if any(item in header_text for item in check_items):
+            return match.group(0)
+        if ":" in header_text[:-1] or "：" in header_text[:-1]:
+            return match.group(0)
+
+        # Check if the header is too long
+        if len(header_text) >= 20:
+            return match.group(0)
+
+        # Get the header level
+        numbers = re.findall(r'\d+', header_text)
+        if len(numbers) == 1:
+            header_level = '#'  # Header 1
+        elif len(numbers) == 2:
+            header_level = '#' * 2  # Header 2
+        else:
+            return match.group(0)  # No change for other headers
+
+        return f"\n{header_level} {header_text}\n"
+
+    # Convert DOCX to Markdown
+    w2m_command = f'source ~/.bash_profile && w2m "{docx_file_abs_path}"'
+    markdown_code = get_markdown_from_command(w2m_command)
+
+    extract_and_save_images(
+        markdown_text=markdown_code,
+        root_output_dir=output_dir,
+        file_name=get_file_name(docx_file_abs_path, with_extension=False)
+    )
 
 
 def pdf2image(
@@ -118,7 +210,7 @@ def pdf2image(
     return image_paths
 
 
-def pdf2txt(pdf_input_path: str, txt_output_path: Optional[str, None]) -> str:
+def pdf2txt(pdf_input_path: str, txt_output_path: Optional[str]) -> str:
     # Using fitz
     with fitz.open(pdf_input_path) as pdf:
         text = ""

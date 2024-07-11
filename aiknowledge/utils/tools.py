@@ -24,7 +24,7 @@ def convert_chat_message_to_str(chat_history: List[Dict]) -> str:
 
 def get_company_document_code(document_name: str) -> str:
     """
-    Get doc code from intflex doc name
+    Get store code from intflex store name
     """
     # num_part = document_name.split("-")[-1][:3]
     # document_code = "-".join(document_name.split("-")[:-1]) + "-" + num_part
@@ -134,8 +134,8 @@ def convert_escaped_chars_to_original_chars(escaped_list: List[str]) -> List[str
     :param escaped_list: 包含转义字符的字符串列表
     :return: 包含实际字符的字符串列表
     """
-    original_list = ['\\n\\n', '\\n', '。', '\\t', '.', 'a']
-    return [s.encode().decode('unicode_escape') for s in original_list]
+    # original_list = ['\\n\\n', '\\n', '。', '\\t', '.', 'a']
+    return [s.encode().decode('unicode_escape') for s in escaped_list]
 
 
 def convert_numpy_types(obj):
@@ -202,3 +202,33 @@ def get_all_file_path_from_folder(folder_path: str, is_absolute_path: bool = Tru
 
     return all_file_paths
 
+
+# --------------------------- String Tools ---------------------------
+def merge_chunks(chunk1, chunk2):
+    """
+    Merge two chunks by removing the overlap
+    """
+    max_overlap = min(len(chunk1), len(chunk2))
+    for i in range(max_overlap, 0, -1):
+        # Start with chunk1's tail and chunk2's head
+        if chunk1[-i:] == chunk2[:i]:
+            return chunk1 + chunk2[i:]
+    return chunk1 + chunk2  # if no overlap, simply concatenate
+
+
+def remove_overlap(chunk1, chunk2):
+    """
+    Remove the overlap from chunk1
+    """
+    max_overlap = min(len(chunk1), len(chunk2))
+    # Start with chunk1's tail and chunk2's head
+    for i in range(max_overlap, 0, -1):
+        if chunk1[-i:] == chunk2[:i]:
+            return chunk1[:-i]
+
+    # Start with chunk1's head and chunk2's tail
+    for i in range(max_overlap, 0, -1):
+        if chunk1[:i] == chunk2[-i:]:
+            return chunk1[i:]
+
+    return chunk1
