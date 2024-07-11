@@ -3,7 +3,7 @@ from typing import Optional, Generator, Any
 import requests
 from openai import OpenAI
 
-from .prompt import KNOWLEDGE_QA_PROMPT, USER_INTENTION_RECOGNITION_PROMPT, OCR_PROMPT, PARSE_TABLE_CONTENT_PROMPT
+from .prompt import KNOWLEDGE_QA_PROMPT, QUERY_ANALYSIS_PROMPT, OCR_PROMPT, PARSE_TABLE_CONTENT_PROMPT
 
 
 class LLMAPIResponse:
@@ -87,10 +87,10 @@ class OpenAILLM:
             if chunk.usage is not None:
                 self._stream_chat_token_usage += chunk.usage.total_tokens  # only the last chunk has the total token count
 
-    def intention_recognition(self, user_question: str, model_name: Optional[str] = None) -> LLMAPIResponse:
+    def query_analysis(self, user_question: str, model_name: Optional[str] = None) -> LLMAPIResponse:
         messages = [
-            {"role": "system", "content": USER_INTENTION_RECOGNITION_PROMPT},
-            {"role": "user", "content": user_question}
+            # {"role": "system", "content": },
+            {"role": "user", "content": QUERY_ANALYSIS_PROMPT + user_question}
         ]
         response = self._chat_completion.create(
             model=self.INTENTION_RECOGNITION_MODEL if not model_name else model_name,

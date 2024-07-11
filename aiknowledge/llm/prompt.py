@@ -200,3 +200,21 @@ If you can’t read it clearly, try correcting the image before guessing the tex
 You might try to enhance the contrast on the image, or rotate it or apply skew or perspective correction to read it more easily. \
 Make sure you’ve got the best read you can on the characters in the image before you try to correct your guess on the words through their semantic meaning.
 """
+
+QUERY_ANALYSIS_PROMPT = """
+请按以下步骤完成接下来我交给你的任务，并以指定的格式输出任务的最终结果。
+</步骤一>：请将给到的文段进行拆分，拆分出文段中可能包含的所有问题（即用户的提问）。
+</步骤二>对于在任务二中得到的每个问题进行以下操作：\
+用三种不同的方式改写问题（对于每个问题输出三种不同的提问方式），\
+尽量去改写提问中涉及到的名词（同一种事物换不同的描述方式）和动词同时改写的方式要尽可能的多样化但所表述的意思一定要与原问题一致，\
+对于所有问题完成改写后请按照下述JSON格式输出：
+```json
+{
+   "原问题1":  ["改写1", "改写2", "改写3"],
+   "原问题2":  ["改写1", "改写2", "改写3"],
+   "原问题3":  ["改写1", "改写2", "改写3"],
+}
+##请注意：你的输出应该只包含任务的最终结果字典，不应该有其他任何内容同时你的输出必须是中文。
+需要处理的文段如下：
+
+"""

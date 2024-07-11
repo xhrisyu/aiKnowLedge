@@ -107,29 +107,31 @@ def chatbot_page():
                 st.session_state.context = ""  # formatted context for AI response
 
                 # Intention recognition
-                # with st.spinner("问题意图识别中..."):
-                #     print("Start to recognize user intention...")
-                #     time1 = time.time()
-                #
-                #     intention_response = llm_client.intention_recognition(user_input)  # "{"1": {"keywords": [], "coherent_sentence": "xxx"}, "2": {}}"
-                #     intention_response_str = intention_response.content
-                #     intention_response_token_usage = intention_response.token_usage
-                #     st.session_state.user_intention = json.loads(intention_response_str)
-                #     time2 = time.time()
-                #     print(f"Intention recognition time: {time2 - time1}\n")
-                #     chatbot_container.caption(f"Intention Recognition Token Usage: {intention_response_token_usage} | time cost: {time2 - time1}")
-                #
-                #     with retriever_container:
-                #         st.markdown("#### 问题意图识别结果")
-                #         for no, intention in st.session_state.user_intention.items():
-                #             keywords = intention.get("keywords", [])
-                #             coherent_sentence = intention.get("coherent_sentence", "")
-                #             if coherent_sentence:
-                #                 st.session_state.user_recognized_question.append(coherent_sentence)
-                #             st.markdown(f"**分析{no}**")
-                #             keywords_str = ", ".join(keywords)
-                #             st.markdown(f":orange[**{coherent_sentence}** ***(关键词: {keywords_str})***]")
-                #         st.divider()
+                with st.spinner("问题分析中..."):
+                    print("Start to recognize user intention...")
+                    time1 = time.time()
+
+                    intention_response = llm_client.query_analysis(user_input)  # "{"1": {"keywords": [], "coherent_sentence": "xxx"}, "2": {}}"
+                    intention_response_str = intention_response.content
+                    intention_response_token_usage = intention_response.token_usage
+                    st.session_state.user_intention = json.loads(intention_response_str)
+                    time2 = time.time()
+                    print(f"Intention recognition time: {time2 - time1}\n")
+                    chatbot_container.caption(f"Intention Recognition Token Usage: {intention_response_token_usage} | time cost: {time2 - time1}")
+
+                    with retriever_container:
+                        st.markdown("#### 问题分析结果")
+                        no = 0
+                        for question, rewrite_question_list in st.session_state.user_intention.items():
+                            if rewrite_question_list:
+                                st.session_state.user_recognized_question.extend(rewrite_question_list)
+                            st.markdown(f"**分析{no + 1}**")
+                            st.markdown(f":orange[**原问题: {question}**]\n\n")
+                            for idx, rewrite_question in enumerate(rewrite_question_list):
+                                st.markdown(f":black[改写{idx}: {rewrite_question}]\n\n")
+                            no += 1
+
+                        st.divider()
 
                 # Retrieve Documents
 
