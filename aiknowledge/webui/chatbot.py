@@ -5,13 +5,18 @@ $ Retrieving documents use qdrant client directly, not through FastAPI backend [
 $ QA request use llm client directly, not through FastAPI backend [streaming output is hard to implement]
 """
 import json
+import os
 import time
 import streamlit as st
+from pymongo import MongoClient
 from streamlit_float import float_init, float_css_helper, float_parent
 
 from aiknowledge.config import app_config
 from aiknowledge.llm import OpenAILLM
 from aiknowledge.db import QAQdrantClient
+from aiknowledge.webui.constants import QDRANT_COLLECTION_INTFLEX
+from aiknowledge.utils.tools import remove_overlap
+from aiknowledge.rag.retriever.bm25_search import BM25Searcher
 
 
 @st.cache_resource
@@ -25,9 +30,22 @@ def get_qdrant_client():
     qdrant_config = app_config.get("qdrant")
     return QAQdrantClient(
         url=qdrant_config["url"],
-        collection_name=qdrant_config['collection_name']["general"],
+        collection_name=qdrant_config['collection_name']["intflex_audit"],
         embedding_dim=qdrant_config["embedding_dim"]
     )
+
+
+@st.cache_resource
+def get_mongo_client():
+    mongo_config = app_config.get("mongo")
+    return MongoClient(mongo_config['uri'])
+
+
+@st.cache_resource
+def get_bm25searcher():
+    searcher = BM25Searcher(index_dir="./aiknowledge/uploaded_file/indexes/lucene-index")
+    searcher.set_language("zh")
+    return searcher
 
 
 def chatbot_page():
@@ -52,6 +70,7 @@ def chatbot_page():
     retriever_container = col2.container(border=False, height=700)
 
     with chatbot_container:
+
         # Chat input
         with st.container(border=False):
             float_init(theme=True, include_unstable_primary=False)
@@ -61,7 +80,7 @@ def chatbot_page():
 
         # Init chat message
         if "messages" not in st.session_state:
-            st.session_state.messages = [{"role": "assistant", "content": "这里是Ledge，你的知识库问答助手，想问些什么？"}]
+            st.session_state.messages = [{"role": "assistant", "content": "这里是则成雨林，您的知识库问答助手，想问些什么？"}]
 
         # Display chat session message
         for message in st.session_state.messages:
@@ -71,6 +90,9 @@ def chatbot_page():
         if user_input:
             llm_client = get_llm_client()
             qdrant_client = get_qdrant_client()
+            mongo_client = get_mongo_client()
+            mongo_collection = mongo_client["intflex_audit"]["chunk_data"]
+            searcher = get_bm25searcher()
 
             # User Message
             with st.chat_message("user"):
@@ -80,84 +102,160 @@ def chatbot_page():
             with st.chat_message("assistant"):
                 st.session_state.user_intention = {}  # save llm intention recognition result
                 st.session_state.user_recognized_question = []  # save llm recognized questions
-                st.session_state.retrieved_docs = []  # save retrieved doc from vecdb
+                st.session_state.vector_searched_documents = []
+                st.session_state.keyword_searched_documents = []
                 st.session_state.context = ""  # formatted context for AI response
 
                 # Intention recognition
-                with st.spinner("问题意图识别中..."):
-                    print("Start to recognize user intention...")
-                    time1 = time.time()
-                    intention_response = llm_client.intention_recognition(user_input)  # "{"1": {"keywords": [], "coherent_sentence": "xxx"}, "2": {}}"
-                    intention_response_str = intention_response.content
-                    intention_response_token_usage = intention_response.token_usage
-                    st.session_state.user_intention = json.loads(intention_response_str)
-                    time2 = time.time()
-                    print(f"Intention recognition time: {time2 - time1}\n")
-                    chatbot_container.caption(f"Intention Recognition Token Usage: {intention_response_token_usage} | time cost: {time2 - time1}")
-
-                    with retriever_container:
-                        st.markdown("#### 问题意图识别结果")
-                        for no, intention in st.session_state.user_intention.items():
-                            keywords = intention.get("keywords", [])
-                            coherent_sentence = intention.get("coherent_sentence", "")
-                            if coherent_sentence:
-                                st.session_state.user_recognized_question.append(coherent_sentence)
-                            st.markdown(f"**分析{no}**")
-                            keywords_str = ", ".join(keywords)
-                            st.markdown(f":orange[**{coherent_sentence}** ***(关键词: {keywords_str})***]")
-                        st.divider()
+                # with st.spinner("问题意图识别中..."):
+                #     print("Start to recognize user intention...")
+                #     time1 = time.time()
+                #
+                #     intention_response = llm_client.intention_recognition(user_input)  # "{"1": {"keywords": [], "coherent_sentence": "xxx"}, "2": {}}"
+                #     intention_response_str = intention_response.content
+                #     intention_response_token_usage = intention_response.token_usage
+                #     st.session_state.user_intention = json.loads(intention_response_str)
+                #     time2 = time.time()
+                #     print(f"Intention recognition time: {time2 - time1}\n")
+                #     chatbot_container.caption(f"Intention Recognition Token Usage: {intention_response_token_usage} | time cost: {time2 - time1}")
+                #
+                #     with retriever_container:
+                #         st.markdown("#### 问题意图识别结果")
+                #         for no, intention in st.session_state.user_intention.items():
+                #             keywords = intention.get("keywords", [])
+                #             coherent_sentence = intention.get("coherent_sentence", "")
+                #             if coherent_sentence:
+                #                 st.session_state.user_recognized_question.append(coherent_sentence)
+                #             st.markdown(f"**分析{no}**")
+                #             keywords_str = ", ".join(keywords)
+                #             st.markdown(f":orange[**{coherent_sentence}** ***(关键词: {keywords_str})***]")
+                #         st.divider()
 
                 # Retrieve Documents
+
                 with st.spinner("文档检索中..."):
-                    print("Start to retrieve documents...")
                     time1 = time.time()
-                    # Iterate each recognized question
-                    qdrant_client.checkout_collection(QDRANT_COLLECTION_DEFAULT_NAME)
-                    for user_question in st.session_state.user_recognized_question:
-                        embedding_response = llm_client.get_text_embedding(text=user_question)
-                        embedding_user_question = embedding_response.content
-                        embedding_response_token_usage = embedding_response.token_usage
-                        retrieved_payloads = qdrant_client.retrieve_similar_vectors_with_adjacent_context(
-                            query_vector=embedding_user_question,
-                            top_k=top_k,
-                            sim_lower_bound=sim_threshold,
-                            adjacent_len=additional_context_length
-                        )
-                        st.session_state.retrieved_docs.extend(retrieved_payloads)
+                    qdrant_client.checkout_collection(QDRANT_COLLECTION_INTFLEX)
+                    # for user_question in st.session_state.user_recognized_question:
+                    #     embedding_response = llm_client.get_text_embedding(text=user_question)
+                    #     embedding_user_question = embedding_response.content
+                    #     embedding_response_token_usage = embedding_response.token_usage
+                    #     retrieved_payloads = qdrant_client.retrieve_similar_vectors_simply(
+                    #         query_vector=embedding_user_question,
+                    #         top_k=top_k,
+                    #         sim_lower_bound=sim_threshold,
+                    #     )
+                    embedding_response = llm_client.get_text_embedding(text=user_input)
+                    embedding_user_question = embedding_response.content
+                    embedding_response_token_usage = embedding_response.token_usage
                     time2 = time.time()
                     print(f"Embedding time cost: {time2 - time1}")
                     chatbot_container.caption(f"Embedding Token Usage: {embedding_response_token_usage} | time cost: {time2 - time1}")
 
-                    # Sort retrieved documents result by score
+                    # Vector Search
+                    print("Start to vector search...")
                     time1 = time.time()
-                    st.session_state.retrieved_docs = st.session_state.retrieved_docs[:top_k]
-                    st.session_state.retrieved_docs = sorted(st.session_state.retrieved_docs, key=lambda x: x["score"], reverse=True)
-                    for doc in st.session_state.retrieved_docs:
-                        document_name = doc['document_name']
-                        page_content = doc.get('page_content', "")
-                        pre_page_content = doc.get('pre_page_content', "")
-                        next_page_content = doc.get('next_page_content', "")
-                        st.session_state.context += f"[文本来源]: {document_name}\n[正文]:{pre_page_content}{page_content}{next_page_content}\n<DIVIDER>"
-                    time2 = time.time()
-                    print(f"Retrieve documents time: {time2 - time1}")
+                    vector_search_payloads = qdrant_client.retrieve_similar_vectors_simply(
+                        query_vector=embedding_user_question,
+                        top_k=top_k,
+                        sim_lower_bound=sim_threshold,
+                    )
 
+                    # Get original content from MongoDB (base on chunk_id and doc_name)
+                    for vector_search_payload in vector_search_payloads:
+                        doc_id = vector_search_payload["doc_id"]
+                        chunk_id = vector_search_payload["chunk_id"]
+
+                        pre_chunk = mongo_collection.find_one({"doc_id": doc_id, "chunk_id": chunk_id - 1})
+                        pre_content = pre_chunk.get("content", "") if pre_chunk else ""
+
+                        chunk = mongo_collection.find_one({"doc_id": doc_id, "chunk_id": chunk_id})
+                        content = chunk.get("content", "") if chunk else ""
+
+                        next_chunk = mongo_collection.find_one({"doc_id": doc_id, "chunk_id": chunk_id + 1})
+                        next_content = next_chunk.get("content", "") if next_chunk else ""
+
+                        vector_search_payload["content"] = content
+                        vector_search_payload["pre_content"] = remove_overlap(pre_content, content)
+                        vector_search_payload["next_content"] = remove_overlap(next_content, content)
+
+                    st.session_state.vector_searched_documents.extend(vector_search_payloads)
+
+                    # Sort retrieved documents result by score [from Vector Search]
+                    st.session_state.vector_searched_documents = st.session_state.vector_searched_documents[:top_k]
+                    st.session_state.vector_searched_documents = sorted(st.session_state.vector_searched_documents, key=lambda x: x["score"], reverse=True)
+                    for doc in st.session_state.vector_searched_documents:
+                        doc_name = doc["doc_name"]
+                        content = doc.get("content", "")
+                        pre_content = doc.get("pre_content", "")
+                        next_content = doc.get("next_content", "")
+                        st.session_state.context += f"[文本来源]: {doc_name}\n[正文]:{pre_content}{content}{next_content}\n<DIVIDER>"
+
+                    time2 = time.time()
+                    print(f"Vector search time cost: {time2 - time1}")
+
+                    # Keyword Search
+                    print("Start to keyword search based on BM25...")
+
+                    time1 = time.time()
+                    keyword_search_results = searcher.search(user_input, top_k)
+                    # Get original content from MongoDB (base on chunk_id and doc_name)
+                    for keyword_search_result in keyword_search_results:
+                        doc_id = keyword_search_result["doc_id"]
+                        chunk_id = keyword_search_result["chunk_id"]
+                        doc_name = mongo_collection.find_one({"doc_id": doc_id, "chunk_id": chunk_id}).get("doc_name", "")
+
+                        pre_chunk = mongo_collection.find_one({"doc_id": doc_id, "chunk_id": chunk_id - 1})
+                        pre_content = pre_chunk.get("content", "") if pre_chunk else ""
+
+                        chunk = mongo_collection.find_one({"doc_id": doc_id, "chunk_id": chunk_id})
+                        content = chunk.get("content", "") if chunk else ""
+
+                        next_chunk = mongo_collection.find_one({"doc_id": doc_id, "chunk_id": chunk_id + 1})
+                        next_content = next_chunk.get("content", "") if next_chunk else ""
+
+                        keyword_search_result["doc_name"] = doc_name
+                        keyword_search_result["content"] = content
+                        keyword_search_result["pre_content"] = remove_overlap(pre_content, content)
+                        keyword_search_result["next_content"] = remove_overlap(next_content, content)
+
+                    st.session_state.keyword_searched_documents.extend(keyword_search_results)
+
+                    # Display result
                     with retriever_container:
-                        st.markdown("#### 文档检索结果")
-                        for no, doc in enumerate(st.session_state.retrieved_docs):
+                        st.markdown("#### BM25检索结果")
+                        for no, doc in enumerate(st.session_state.keyword_searched_documents):
                             chunk_id = doc["chunk_id"]
-                            page = doc["page"]
-                            document_name = doc["document_name"]
-                            page_content = doc.get("page_content", "")
-                            pre_page_content = doc.get('pre_page_content', "")
-                            next_page_content = doc.get('next_page_content', "")
+                            doc_name = doc["doc_name"]
+                            content = doc.get("content", "").replace("\n", "")
+                            pre_content = doc.get("pre_content", "").replace("\n", "")
+                            next_content = doc.get("next_content", "").replace("\n", "")
                             score = doc["score"]
                             # Display
-                            st.markdown(f"**来源{no + 1}**: **{document_name}** ***(page:{page}, chunk_id:{chunk_id})***")
-                            st.markdown(f":orange[{pre_page_content}]{page_content}:orange[{next_page_content}]")
+                            st.markdown(f"**来源{no + 1}**: **{doc_name}** ***(chunk_id:{chunk_id})***")
+                            st.markdown(f":orange[{pre_content}]:green{content}:orange[{next_content}]")
                             st.markdown(f":red[相似度={score}]")
                             st.divider()
 
+                        st.markdown("#### 向量检索结果")
+                        for no, doc in enumerate(st.session_state.vector_searched_documents):
+                            chunk_id = doc["chunk_id"]
+                            doc_name = doc["doc_name"]
+                            content = doc.get("content", "").replace("\n", "")
+                            pre_content = doc.get("pre_content", "").replace("\n", "")
+                            next_content = doc.get("next_content", "").replace("\n", "")
+                            score = doc["score"]
+                            # Display
+                            st.markdown(f"**来源{no + 1}**: **{doc_name}** ***(chunk_id:{chunk_id})***")
+                            st.markdown(f":orange[{pre_content}]:green{content} :orange[{next_content}]")
+                            st.markdown(f":red[相似度={score}]")
+                            st.divider()
+
+                        time2 = time.time()
+                        print(f"Keyword search time cost: {time2 - time1}")
+
                 # Generate AI Response
+
                 with st.spinner("AI思考中..."):
                     # Get chat history from st.session.state
                     chat_history = st.session_state.messages
@@ -207,6 +305,4 @@ def chatbot_page():
     #     """, unsafe_allow_html=True)
     #     st.markdown('<div class="column-left">', unsafe_allow_html=True)
     #     st.markdown('</div>', unsafe_allow_html=True)
-
-
 
