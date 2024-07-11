@@ -1,8 +1,10 @@
-from typing import Optional, List, Dict, Sequence, Union, Any
+from typing import Optional, List, Dict, Sequence, Union, Any, Tuple
 from qdrant_client import QdrantClient, models
 from qdrant_client.conversions import common_types as types
 from qdrant_client.http.models import Filter, FieldCondition, MatchValue
 from qdrant_client.models import PointStruct, VectorParams, Distance
+
+from pymongo import MongoClient
 
 
 # ========================= Qdrant Client =========================
@@ -172,9 +174,7 @@ class QAQdrantClient(QdrantClient):
         retrieved_infos = []
         for point in points:
             info = {
-                "doc_id": point.id,
-                "chunk_id": point.payload['chunk_id'],
-                "doc_name": point.payload['doc_name'],
+                "chunk_id": point.id,
                 "score": point.score,
             }
             retrieved_infos.append(info)
@@ -362,11 +362,37 @@ class QAQdrantClient(QdrantClient):
         # Delete collection
         self.delete_collection(self._collection_name)
 
-        # Recreate the collection
-        # self.recreate_collection(
-        #     collection_name=self._collection_name,
-        #     vectors_config=VectorParams(
-        #         size=self._embedding_dim,
-        #         distance=Distance.COSINE
-        #     )
-        # )
+
+class KBMongoClient(MongoClient):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+    def get_neighbour_chunk_content_by_chunk_id(
+            self,
+            database_name: str,
+            collection_name: str,
+            chunk_id: str,
+    ) -> tuple[str | Any, int | Any, str | Any, str | Any, str | Any]:
+
+        # Checkout to target collection
+        chunk_collection = self[database_name][collection_name]
+
+        # Get doc_id, doc_name and chunk_seq
+        doc_id = chunk_collection.find_one({"chunk_id": chunk_id}).get("doc_id", "")
+        doc_name = chunk_collection.find_one({"chunk_id": chunk_id}).get("doc_name", "")
+        chunk_seq = chunk_collection.find_one({"chunk_id": chunk_id}).get("chunk_seq", "")
+
+        # Get previous, current and next chunk content
+        pre_chunk = chunk_collection.find_one({"doc_id": doc_id, "chunk_seq": chunk_seq - 1})
+        pre_content = pre_chunk.get("content", "") if pre_chunk else ""
+
+        chunk = chunk_collection.find_one({"doc_id": doc_id, "chunk_seq": chunk_seq})
+        content = chunk.get("content", "") if chunk else ""
+
+        next_chunk = chunk_collection.find_one({"doc_id": doc_id, "chunk_seq": chunk_seq + 1})
+        next_content = next_chunk.get("content", "") if next_chunk else ""
+
+        return doc_name, chunk_seq, pre_content, content, next_content
+
+
+
