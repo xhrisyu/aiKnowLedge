@@ -3,7 +3,8 @@ from typing import Optional, Generator, Any
 import requests
 from openai import OpenAI
 
-from .prompt import KNOWLEDGE_QA_PROMPT, QUERY_ANALYSIS_PROMPT, OCR_PROMPT, PARSE_TABLE_CONTENT_PROMPT
+from .prompt import KNOWLEDGE_QA_PROMPT, QUERY_ANALYSIS_PROMPT, OCR_PROMPT, PARSE_TABLE_CONTENT_PROMPT, \
+    ENTITY_RECOGNITION_PROMPT, QUERY_DECOMPOSITION_PROMPT
 
 
 class LLMAPIResponse:
@@ -96,10 +97,37 @@ class OpenAILLM:
             model=self.INTENTION_RECOGNITION_MODEL if not model_name else model_name,
             messages=messages,
             response_format={"type": "json_object"},
-            temperature=0.5
+            temperature=0.0
         )
         token_usage = response.usage.total_tokens
         return LLMAPIResponse(response.choices[0].message.content, token_usage)
+
+    def query_decomposition(self, user_question: str, model_name: Optional[str] = None) -> LLMAPIResponse:
+        messages = [
+            {"role": "user", "content": QUERY_DECOMPOSITION_PROMPT + user_question}
+        ]
+        response = self._chat_completion.create(
+            model=self.INTENTION_RECOGNITION_MODEL if not model_name else model_name,
+            messages=messages,
+            response_format={"type": "json_object"},
+            temperature=0.0
+        )
+        token_usage = response.usage.total_tokens
+        return LLMAPIResponse(response.choices[0].message.content, token_usage)
+
+    def entity_recognition(self, user_question: str, model_name: Optional[str] = None) -> LLMAPIResponse:
+        messages = [
+            {"role": "user", "content": ENTITY_RECOGNITION_PROMPT + user_question}
+        ]
+        response = self._chat_completion.create(
+            model=self.INTENTION_RECOGNITION_MODEL if not model_name else model_name,
+            messages=messages,
+            response_format={"type": "json_object"},
+            temperature=0.0
+        )
+        token_usage = response.usage.total_tokens
+        return LLMAPIResponse(response.choices[0].message.content, token_usage)
+
 
     @staticmethod
     def encode_image(image_path):

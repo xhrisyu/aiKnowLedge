@@ -92,7 +92,6 @@ class BM25Searcher:
         > return structure:
         [
             {
-                "doc_id": <doc_id>,
                 "chunk_id": <chunk_id>,
                 "score": <score>,
             },
@@ -101,13 +100,7 @@ class BM25Searcher:
         """
         result = []
         if hits:
-            for hit in hits:
-                doc_id, chunk_id = BM25Searcher.parse_docid(hit.docid)
-                result.append({
-                    "doc_id": doc_id,
-                    "chunk_id": chunk_id,
-                    "score": hit.score,
-                })
+            return [{"chunk_id": hit.docid, "score": hit.score} for hit in hits]
 
         return result
 

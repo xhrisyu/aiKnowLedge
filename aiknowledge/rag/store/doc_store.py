@@ -97,12 +97,12 @@ def construct_lucene_index(
         os.makedirs(document_json_dir, exist_ok=True)
 
     with open(os.path.join(document_json_dir, "documents.jsonl"), "w", encoding="utf-8") as f:
-        for doc in collection.find():
+        for chunk in collection.find():
             f.write(
                 json.dumps(
                     {
-                        "id": f'{str(doc["doc_id"])}<{str(doc["chunk_id"])}>',
-                        "contents": doc["content"]
+                        "id": str(chunk["chunk_id"]),
+                        "contents": chunk["content"]
                     },
                     ensure_ascii=False
                 ) + "\n"
@@ -121,3 +121,9 @@ def construct_lucene_index(
               --storeRaw"
               )
 
+# construct_lucene_index(
+#     database_name="intflex_audit",
+#     collection_name="chunk_data",
+#     document_json_dir=os.path.abspath("../uploaded_file/document_json"),
+#     index_dir=os.path.abspath("../uploaded_file/indexes/lucene-index")
+# )
