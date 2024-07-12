@@ -145,7 +145,7 @@ class QAQdrantClient(QdrantClient):
             self,
             query_vector: List[float],
             top_k: int = 3,
-            sim_lower_bound: float = 0.6
+            sim_lower_bound: float = 0.0
     ) -> List[Dict]:
         """
         Retrieve similar vectors with payload

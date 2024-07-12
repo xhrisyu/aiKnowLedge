@@ -72,9 +72,9 @@ with st.sidebar:
         # options=["主页", "问答助手", "知识管理", "习题生成"],
         # icons=["house", "robot", "cloud-upload", "clipboard-data", "box"],
         options=["主页", "问答助手"],
-        icons=["house", "robot", "cloud-upload"],
+        icons=["house", "robot"],
         menu_icon="cast",
-        default_index=0,
+        default_index=1,
     )
 
 # if not check_password():
@@ -86,12 +86,12 @@ if selected_item == "主页":
     # Load local README.md file
     en_readme, cn_readme = "", ""
 
-    cn_readme_path = os.path.join("../README.md")
+    cn_readme_path = os.path.join("README.md")
     if os.path.exists(cn_readme_path):
         with open(cn_readme_path, "r", encoding="utf-8") as f:
             cn_readme = f.read()
 
-    en_readme_path = os.path.join("../README_EN.md")
+    en_readme_path = os.path.join("README_EN.md")
     if os.path.exists(en_readme_path):
         with open(en_readme_path, "r", encoding="utf-8") as f:
             en_readme = f.read()
