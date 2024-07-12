@@ -71,14 +71,14 @@ with st.sidebar:
         menu_title="",
         # options=["主页", "问答助手", "知识管理", "习题生成"],
         # icons=["house", "robot", "cloud-upload", "clipboard-data", "box"],
-        options=["主页", "问答助手"],
-        icons=["house", "robot"],
+        options=["问答助手"],
+        icons=["robot"],
         menu_icon="cast",
-        default_index=1,
+        default_index=0,
     )
 
-# if not check_password():
-#     st.stop()
+if not check_password():
+    st.stop()
 
 if selected_item == "主页":
     st.title("Welcome to aiKnowLedge🤓")

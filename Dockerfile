@@ -71,9 +71,6 @@ RUN mkdir -p /usr/lib/jvm \
     && rm jdk-21_linux-x64_bin.tar.gz \
     && ln -s /usr/lib/jvm/jdk-21 /usr/lib/jvm/java-21-openjdk-amd64
 
-# Verify the libjvm.so path
-RUN find /usr/lib/jvm -name libjvm.so
-
 # Set JAVA_HOME and JVM_PATH environment variables
 #ENV JAVA_HOME="/usr/lib/jvm/java-21-openjdk-amd64"
 #ENV JVM_PATH="/usr/lib/jvm/java-21-openjdk-amd64/lib/server/libjvm.so"
@@ -91,6 +88,7 @@ RUN pip install --no-cache-dir -r /aiknowledge/requirements.txt --progress-bar o
 # Copy the rest of the application
 COPY run.sh /aiknowledge/run.sh
 COPY aiknowledge /aiknowledge/aiknowledge
+COPY .streamlit /aiknowledge/.streamlit
 
 # Expose the port the Streamlit app runs on
 EXPOSE 8501
