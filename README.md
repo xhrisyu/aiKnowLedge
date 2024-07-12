@@ -62,14 +62,10 @@ aiKnowLedge 是一个用于管理知识库和问答聊天机器人的项目，�
    pip install -r requirements.txt
    ```
 
-3. 启动前端 (Streamlit)：
+3. 启动 (Streamlit)：
    ```shell
-   streamlit run app.py --backend.address=127.0.0.1 --backend.port=8501
-   ```
-
-4. 启动后端 (FastAPI)：
-   ```shell
-   uvicorn backend.api:app --host 127.0.0.1 --port 8500
+   
+   streamlit run aiknowledeg/app.py --backend.address=127.0.0.1 --backend.port=8501
    ```
 
 ## Docker 部署

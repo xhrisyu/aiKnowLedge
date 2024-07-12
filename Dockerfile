@@ -38,7 +38,8 @@
 #CMD ["bash", "/aiknowledge/run.sh"]
 
 # Use an official Python runtime as a parent image
-ARG PYTHON_VERSION=3.11.4
+ARG PYTHON_VERSION=3.10.14
+#ARG PYTHON_VERSION=3.11.4
 FROM python:${PYTHON_VERSION}-slim as base
 
 # Set environment variables to prevent Python from generating .pyc files
@@ -58,8 +59,27 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     libhdf5-dev \
     build-essential \
+    wget \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# Download and install OpenJDK 21
+RUN wget https://download.oracle.com/java/21/latest/jdk-21_linux-x64_bin.tar.gz
+
+RUN mkdir -p /usr/lib/jvm \
+    && tar -xzf jdk-21_linux-x64_bin.tar.gz -C /usr/lib/jvm \
+    && rm jdk-21_linux-x64_bin.tar.gz \
+    && ln -s /usr/lib/jvm/jdk-21 /usr/lib/jvm/java-21-openjdk-amd64
+
+# Verify the libjvm.so path
+RUN find /usr/lib/jvm -name libjvm.so
+
+# Set JAVA_HOME and JVM_PATH environment variables
+#ENV JAVA_HOME="/usr/lib/jvm/java-21-openjdk-amd64"
+#ENV JVM_PATH="/usr/lib/jvm/java-21-openjdk-amd64/lib/server/libjvm.so"
+ENV JAVA_HOME="/usr/lib/jvm/jdk-21.0.3"
+ENV JVM_PATH="/usr/lib/jvm/jdk-21.0.3/lib/server/libjvm.so"
+ENV PATH="$JAVA_HOME/bin:$PATH"
 
 # Upgrade pip
 RUN pip install --upgrade pip --progress-bar off
@@ -78,10 +98,3 @@ EXPOSE 8501
 # Make the entrypoint script executable, Run the entrypoint script
 RUN chmod +x /aiknowledge/run.sh
 CMD ["bash", "/aiknowledge/run.sh"]
-
-
-# Run the application
-#CMD uvicorn backend.api:app --host 127.0.0.1 --port 8500
-#CMD streamlit run app.py --backend.address=0.0.0.0 --backend.port=8501
-#CMD ["streamlit", "run", "app.py", "--backend.port=8501", "--backend.address=0.0.0.0"]
-#CMD ["sh", "-c", "streamlit run app.py --backend.address=0.0.0.0 --backend.port=8501 & uvicorn backend.api:app --host 127.0.0.1 --port 8500"]
