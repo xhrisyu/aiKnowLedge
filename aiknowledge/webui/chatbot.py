@@ -347,7 +347,7 @@ def chatbot_page():
                     if not is_stream:
                         ai_response = llm_client.get_chat_response(
                             user_question=user_input,
-                            context=st.session_state.context,
+                            context=prompt_context,
                             chat_history=chat_history,
                             temperature=temperature,
                             model_name=chat_model_type
