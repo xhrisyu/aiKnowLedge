@@ -124,8 +124,18 @@ class ReRanking:
     def get_cross_encoder_scores(self, query: str) -> list[dict]:
         """
         Get the cross encoder scores for all the chunks
-        :param query:
-        :return:
+
+        :param query: The query to search.
+        :return: The relevant documents.
+        > structure:
+        [
+            {
+                "chunk_id": <chunk_id>,
+                "ranking_method": <ranking_method>,
+                "re_ranking_score": <re_ranking_score>,
+            },
+            ...
+        ]
         """
         results = self._co.rerank(
             model=self.COHERE_CROSS_ENCODER_MODEL_NAME,

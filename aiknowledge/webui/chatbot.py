@@ -6,6 +6,8 @@ $ QA request use llm client directly, not through FastAPI backend [streaming out
 """
 import json
 import time
+from typing import Any
+
 import streamlit as st
 from streamlit_float import float_init, float_css_helper, float_parent
 
@@ -13,9 +15,52 @@ from aiknowledge.config import app_config
 from aiknowledge.llm import OpenAILLM
 from aiknowledge.db import QAQdrantClient, KBMongoClient
 from aiknowledge.rag.retriever.hybrid_search import ReRanking
-from aiknowledge.webui.constants import QDRANT_COLLECTION_INTFLEX
 from aiknowledge.utils.tools import remove_overlap
 from aiknowledge.rag.retriever.bm25_search import BM25Searcher
+from aiknowledge.webui.constants import (
+    QDRANT_COLLECTION_INTFLEX_AUDIT, LUCENE_INDEX_DIR_INTFLEX_AUDIT_CHUNK_DATA,
+    LUCENE_INDEX_DIR_INTFLEX_AUDIT_QA, QDRANT_COLLECTION_INTFLEX_AUDIT_QA
+)
+
+
+def format_retrieve_payload(
+        retrieve_method: str,
+        retrieve_payloads: list[dict[str, Any]],
+        mongo_client: KBMongoClient,
+        mongo_database_name: str,
+        mongo_collection_name: str,
+        top_k: int = 5
+) -> list[dict]:
+    """
+    Format the retrieve payload with the content of the chunk
+
+    :param retrieve_method: enum ["bm25", "cosine_similarity"]
+    :param retrieve_payloads: list of retrieve payload
+    :param mongo_client: KBMongoClient, which store the chunk content
+    :param mongo_collection_name:
+    :param mongo_database_name:
+    :param top_k: top k candidate to return
+    :return: processed retrieve payloads
+    """
+
+    processed_retrieve_payloads = retrieve_payloads
+    for retrieve_payload in processed_retrieve_payloads:
+        doc_name, chunk_seq, pre_content, content, next_content = mongo_client.get_neighbour_chunk_content_by_chunk_id(
+            chunk_id=retrieve_payload["chunk_id"],
+            database_name=mongo_database_name,
+            collection_name=mongo_collection_name
+        )
+        retrieve_payload["doc_name"] = doc_name
+        retrieve_payload["chunk_seq"] = chunk_seq
+        retrieve_payload["pre_content"] = remove_overlap(pre_content, content).replace("\n", "")
+        retrieve_payload["content"] = content.replace("\n", "")
+        retrieve_payload["next_content"] = remove_overlap(next_content, content).replace("\n", "")
+        retrieve_payload["ranking_method"] = retrieve_method
+
+    processed_retrieve_payloads = sorted(processed_retrieve_payloads, key=lambda x: x["score"], reverse=True)
+    processed_retrieve_payloads = processed_retrieve_payloads[:top_k]
+
+    return processed_retrieve_payloads
 
 
 @st.cache_resource
@@ -42,7 +87,7 @@ def get_mongo_client():
 
 @st.cache_resource
 def get_bm25_searcher():
-    bm25_searcher = BM25Searcher(index_dir="./aiknowledge/uploaded_file/indexes/lucene-index")
+    bm25_searcher = BM25Searcher(index_dir=LUCENE_INDEX_DIR_INTFLEX_AUDIT_CHUNK_DATA)
     bm25_searcher.set_language("zh")
     return bm25_searcher
 
@@ -113,9 +158,10 @@ def chatbot_page():
             # AI Message
             with st.chat_message("assistant"):
                 query_analysis_list = []  # [(query_type: int, query: str, keywords: list), ...]
-                st.session_state.vector_searched_documents = []
-                st.session_state.keyword_searched_documents = []
-                st.session_state.hybrid_searched_documents = []
+                # st.session_state.vector_retrieve_documents = []
+                # st.session_state.keyword_retrieve_documents = []
+                st.session_state.qa_hybrid_retrieve_documents = []
+                st.session_state.hybrid_retrieve_documents = []
                 """ > searched_documents structure
                 [
                     {
@@ -132,7 +178,7 @@ def chatbot_page():
                 """
 
                 ###############################################
-                # Query Decomposition & Entity recognition
+                # Query Decomposition & Entity Recognition
                 ###############################################
                 with st.spinner("问题分析中..."):
                     print("Start query decomposition...")
@@ -174,100 +220,120 @@ def chatbot_page():
                     # Retrieve Documents
                     ###############################################
 
+                    if user_query_type == 0:  # Casual Chat
+                        continue
+
                     with st.spinner("文档检索中..."):
                         ###############################################
                         # Vector Search
                         ###############################################
                         time1 = time.time()
-                        qdrant_client.checkout_collection(QDRANT_COLLECTION_INTFLEX)
                         embedding_response = llm_client.get_text_embedding(text=user_query)  # Embedding
-                        embedding_user_question = embedding_response.content
-                        embedding_response_token_usage = embedding_response.token_usage
+                        embedding_user_question, embedding_response_token_usage = embedding_response.content, embedding_response.token_usage
                         time2 = time.time()
                         print(f"Embedding time cost: {time2 - time1}")
                         if token_and_time_cost_caption:
                             chatbot_container.caption(f"embedding token usage: {embedding_response_token_usage} | time cost: {time2 - time1}")
 
                         time1 = time.time()
-                        vector_search_payloads = qdrant_client.retrieve_similar_vectors_simply(
+                        qdrant_client.checkout_collection(QDRANT_COLLECTION_INTFLEX_AUDIT)
+                        vector_retrieve_payloads = qdrant_client.retrieve_similar_vectors_simply(
                             query_vector=embedding_user_question,
                             top_k=5,
                         )
+                        vector_retrieve_payloads = format_retrieve_payload(
+                            retrieve_method="cosine_similarity",
+                            retrieve_payloads=vector_retrieve_payloads,
+                            mongo_client=mongo_client,
+                            mongo_database_name="intflex_audit",
+                            mongo_collection_name="chunk_data",
+                            top_k=top_k
+                        )
 
-                        # Get chunk content from MongoDB (base on chunk_id and doc_name)
-                        for vector_search_payload in vector_search_payloads:
-                            doc_name, chunk_seq, pre_content, content, next_content = mongo_client.get_neighbour_chunk_content_by_chunk_id(
-                                chunk_id=vector_search_payload["chunk_id"],
-                                database_name="intflex_audit",
-                                collection_name="chunk_data"
-                            )
-                            vector_search_payload["doc_name"] = doc_name
-                            vector_search_payload["chunk_seq"] = chunk_seq
-                            vector_search_payload["ranking_method"] = "cosine_similarity"
-                            vector_search_payload["pre_content"] = remove_overlap(pre_content, content)
-                            vector_search_payload["content"] = content
-                            vector_search_payload["next_content"] = remove_overlap(next_content, content)
-
-                        st.session_state.vector_searched_documents.append(vector_search_payloads)
-                        # Sort retrieved documents result by score [from Vector Search]
-                        st.session_state.vector_searched_documents[no_query] = sorted(st.session_state.vector_searched_documents[no_query], key=lambda x: x["score"], reverse=True)
-                        st.session_state.vector_searched_documents[no_query] = st.session_state.vector_searched_documents[no_query][:top_k]
+                        # Vector search in QA
+                        qdrant_client.checkout_collection(QDRANT_COLLECTION_INTFLEX_AUDIT_QA)
+                        qa_vector_retrieve_payloads = qdrant_client.retrieve_similar_vectors_simply(
+                            query_vector=embedding_user_question,
+                            top_k=5,
+                        )
+                        qa_vector_retrieve_payloads = format_retrieve_payload(
+                            retrieve_method="cosine_similarity",
+                            retrieve_payloads=qa_vector_retrieve_payloads,
+                            mongo_client=mongo_client,
+                            mongo_database_name="intflex_audit",
+                            mongo_collection_name="qa",
+                            top_k=top_k
+                        )
                         time2 = time.time()
                         print(f"Vector search time cost: {time2 - time1}")
 
                         ###############################################
                         # Keyword Search
                         ###############################################
-                        print("Start to keyword search based on BM25...")
                         time1 = time.time()
                         keyword_str = " ".join(entity_list)
-                        keyword_search_results = keyword_searcher.search(
+                        keyword_searcher.checkout_index(LUCENE_INDEX_DIR_INTFLEX_AUDIT_CHUNK_DATA)
+                        keyword_retrieve_payloads = keyword_searcher.search(
                             query=keyword_str,
                             top_k=5
                         )
+                        keyword_retrieve_payloads = format_retrieve_payload(
+                            retrieve_method="bm25",
+                            retrieve_payloads=keyword_retrieve_payloads,
+                            mongo_client=mongo_client,
+                            mongo_database_name="intflex_audit",
+                            mongo_collection_name="chunk_data",
+                            top_k=top_k
+                        )
 
-                        # Get original content from MongoDB (base on chunk_id and doc_name)
-                        for keyword_search_result in keyword_search_results:
-                            doc_name, chunk_seq, pre_content, content, next_content = mongo_client.get_neighbour_chunk_content_by_chunk_id(
-                                chunk_id=keyword_search_result["chunk_id"],
-                                database_name="intflex_audit",
-                                collection_name="chunk_data"
-                            )
-                            keyword_search_result["doc_name"] = doc_name
-                            keyword_search_result["chunk_seq"] = chunk_seq
-                            keyword_search_result["ranking_method"] = "bm25"
-                            keyword_search_result["pre_content"] = remove_overlap(pre_content, content)
-                            keyword_search_result["content"] = content
-                            keyword_search_result["next_content"] = remove_overlap(next_content, content)
-
-                        st.session_state.keyword_searched_documents.append(keyword_search_results)
-
-                        # Sort retrieved documents result by score [from Vector Search]
-                        st.session_state.keyword_searched_documents[no_query] = sorted(st.session_state.keyword_searched_documents[no_query], key=lambda x: x["score"], reverse=True)
-                        st.session_state.keyword_searched_documents[no_query] = st.session_state.keyword_searched_documents[no_query][:top_k]
+                        # Keyword Search in QA
+                        keyword_searcher.checkout_index(LUCENE_INDEX_DIR_INTFLEX_AUDIT_QA)
+                        qa_keyword_retrieve_payloads = keyword_searcher.search(
+                            query=keyword_str,
+                            top_k=5
+                        )
+                        qa_keyword_retrieve_payloads = format_retrieve_payload(
+                            retrieve_method="bm25",
+                            retrieve_payloads=qa_keyword_retrieve_payloads,
+                            mongo_client=mongo_client,
+                            mongo_database_name="intflex_audit",
+                            mongo_collection_name="qa",
+                            top_k=top_k
+                        )
                         time2 = time.time()
                         print(f"Keyword search time cost: {time2 - time1}")
 
                         ###############################################
                         # Hybrid Search
                         ###############################################
-                        # Remove the duplicate documents from vector_searched_documents and keyword_searched_documents
-                        # candidate_documents = st.session_state.vector_searched_documents[no_query] + st.session_state.keyword_searched_documents[no_query]
-                        candidate_documents = st.session_state.keyword_searched_documents[no_query]
-                        for vector_searched_candidate_docs in st.session_state.vector_searched_documents[no_query]:
-                            cur_chunk_id = vector_searched_candidate_docs["chunk_id"]
-                            if not any(doc["chunk_id"] == cur_chunk_id for doc in candidate_documents):
-                                candidate_documents.append(vector_searched_candidate_docs)
-
                         hybrid_searcher = get_hybrid_searcher()
-                        hybrid_searcher.setup_reranking(rankings=candidate_documents, k=top_k)
-                        st.session_state.hybrid_searched_documents.append(hybrid_searcher.get_cross_encoder_scores(
-                            query=user_query))
-
-                        # Get original content from candidate_documents
-                        for ranking_item in st.session_state.hybrid_searched_documents[no_query]:
+                        chunks_candidate = vector_retrieve_payloads + keyword_retrieve_payloads
+                        hybrid_searcher.setup_reranking(rankings=chunks_candidate, k=top_k)
+                        st.session_state.hybrid_retrieve_documents.append(
+                            hybrid_searcher.get_cross_encoder_scores(query=user_query)
+                        )
+                        # Get original content from `candidate_chunks`
+                        for ranking_item in st.session_state.hybrid_retrieve_documents[no_query]:
                             chunk_id = ranking_item["chunk_id"]
-                            for doc in candidate_documents:
+                            for doc in chunks_candidate:
+                                if doc["chunk_id"] == chunk_id:
+                                    ranking_item["doc_name"] = doc["doc_name"]
+                                    ranking_item["chunk_seq"] = doc["chunk_seq"]
+                                    ranking_item["pre_content"] = doc.get("pre_content", "")
+                                    ranking_item["content"] = doc.get("content", "")
+                                    ranking_item["next_content"] = doc.get("next_content", "")
+
+                        qas_candidate = qa_vector_retrieve_payloads + qa_keyword_retrieve_payloads
+                        print(len(qas_candidate))
+                        print(qas_candidate)
+                        hybrid_searcher.setup_reranking(rankings=qas_candidate, k=top_k)
+                        st.session_state.qa_hybrid_retrieve_documents.append(
+                            hybrid_searcher.get_cross_encoder_scores(query=user_query)
+                        )
+                        # Get original content from `candidate_chunks`
+                        for ranking_item in st.session_state.qa_hybrid_retrieve_documents[no_query]:
+                            chunk_id = ranking_item["chunk_id"]
+                            for doc in qas_candidate:
                                 if doc["chunk_id"] == chunk_id:
                                     ranking_item["doc_name"] = doc["doc_name"]
                                     ranking_item["chunk_seq"] = doc["chunk_seq"]
@@ -286,34 +352,28 @@ def chatbot_page():
                             st.markdown("**问题类型**: :orange[企业知识✅]")
                         st.markdown(f'**关键词**: :orange[{entity_list}]')
 
+                        if user_query_type == 0:
+                            continue
+
                         with st.expander("向量检索结果", expanded=False):
-                            for no, doc in enumerate(st.session_state.vector_searched_documents[no_query]):
-                                content = doc.get("content", "").replace("\n", "")
-                                pre_content = doc.get("pre_content", "").replace("\n", "")
-                                next_content = doc.get("next_content", "").replace("\n", "")
+                            for no, doc in enumerate(vector_retrieve_payloads):
                                 st.markdown(f'**来源{no + 1}**: **{doc["doc_name"]}** ***(chunk_seq:{doc["chunk_seq"]})***')
                                 st.markdown(f':red[相似度={doc["score"]}]')
-                                st.markdown(f':orange[{pre_content}]:green{content} :orange[{next_content}]')
+                                st.markdown(f':orange[{doc["pre_content"]}]:green{doc["content"]}:orange[{doc["next_content"]}]')
                                 st.divider()
 
                         with st.expander("关键词检索结果", expanded=False):
-                            for no, doc in enumerate(st.session_state.keyword_searched_documents[no_query]):
-                                content = doc.get("content", "").replace("\n", "")
-                                pre_content = doc.get("pre_content", "").replace("\n", "")
-                                next_content = doc.get("next_content", "").replace("\n", "")
+                            for no, doc in enumerate(keyword_retrieve_payloads):
                                 st.markdown(f'**来源{no + 1}**: **{doc["doc_name"]}** ***(chunk_seq:{doc["chunk_seq"]})***')
                                 st.markdown(f':red[相似度={doc["score"]}]')
-                                st.markdown(f':orange[{pre_content}]:green{content}:orange[{next_content}]')
+                                st.markdown(f':orange[{doc["pre_content"]}]:green{doc["content"]}:orange[{doc["next_content"]}]')
                                 st.divider()
 
                         with st.expander("混合搜索结果", expanded=False):
-                            for no, doc in enumerate(st.session_state.hybrid_searched_documents[no_query]):
-                                content = doc.get("content", "").replace("\n", "")
-                                pre_content = doc.get("pre_content", "").replace("\n", "")
-                                next_content = doc.get("next_content", "").replace("\n", "")
+                            for no, doc in enumerate(st.session_state.hybrid_retrieve_documents[no_query]):
                                 st.markdown(f'**来源{no + 1}**: **{doc["doc_name"]}** ***(chunk_seq:{doc["chunk_seq"]})***')
                                 st.markdown(f':red[评分={doc["re_ranking_score"]}]')
-                                st.markdown(f':orange[{pre_content}]:green{content} :orange[{next_content}]')
+                                st.markdown(f':orange[{doc["pre_content"]}]:green{doc["content"]} :orange[{doc["next_content"]}]')
                                 st.divider()
 
                         st.divider()
@@ -324,8 +384,8 @@ def chatbot_page():
                 # Formatted context for prompt
                 prompt_context = ""
                 prompt_context_chunk_ids = []  # !!!! multiple doc retrieve remove duplicate
-                for no_query in range(len(st.session_state.hybrid_searched_documents)):
-                    for doc in st.session_state.hybrid_searched_documents[no_query]:
+                for no_query in range(len(st.session_state.hybrid_retrieve_documents)):
+                    for doc in st.session_state.hybrid_retrieve_documents[no_query]:
                         chunk_id = doc["chunk_id"]
                         if chunk_id in prompt_context_chunk_ids:
                             continue
@@ -344,7 +404,6 @@ def chatbot_page():
                     # if len(chat_history) > chat_history_len:
                     #     chat_history = chat_history[-chat_history_len:]
                     chat_history = []
-
                     print("Start to generate llm response...")
                     time1 = time.time()
                     if not is_stream:

@@ -73,30 +73,30 @@ def store_chunks(
 
 
 def construct_lucene_index(
-        database_name: str,
-        collection_name: str,
+        mongo_database_name: str,
+        mongo_collection_name: str,
         document_json_dir: str,
         index_dir: str = "indexes/lucene-index"
 ) -> None:
     """
     Construct Lucene index from chunk data
 
-    :param database_name: name of the MongoDB database
-    :param collection_name: name of the MongoDB collection
+    :param mongo_database_name: name of the MongoDB database
+    :param mongo_collection_name: name of the MongoDB collection
     :param document_json_dir: dir of json file of the document chunk
     :param index_dir: dir of index file output
     :return:
     """
 
     # Get all the chunks from the MongoDB
-    database = mongo_client[database_name]
-    collection = database[collection_name]
+    database = mongo_client[mongo_database_name]
+    collection = database[mongo_collection_name]
 
     # Save the chunks into json
     if not os.path.exists(document_json_dir):
         os.makedirs(document_json_dir, exist_ok=True)
 
-    with open(os.path.join(document_json_dir, "documents.jsonl"), "w", encoding="utf-8") as f:
+    with open(os.path.join(document_json_dir, f"{mongo_collection_name}.jsonl"), "w", encoding="utf-8") as f:
         for chunk in collection.find():
             f.write(
                 json.dumps(
@@ -121,9 +121,3 @@ def construct_lucene_index(
               --storeRaw"
               )
 
-# construct_lucene_index(
-#     database_name="intflex_audit",
-#     collection_name="chunk_data",
-#     document_json_dir=os.path.abspath("../uploaded_file/document_json"),
-#     index_dir=os.path.abspath("../uploaded_file/indexes/lucene-index")
-# )

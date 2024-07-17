@@ -20,7 +20,7 @@ class BM25Searcher:
             index_dir: os.PathLike | str,
             language="zh"
     ) -> None:
-        """A searcher that searches relavant documents
+        """A searcher that searches relevant documents
         from the provided document base.
 
         Parameters
@@ -39,7 +39,13 @@ class BM25Searcher:
         self._searcher = LuceneSearcher(index_dir)
 
         # set up the language
+        self._language = language
         self.set_language(language)
+
+    def checkout_index(self, index_dir: os.PathLike | str):
+        index_dir = str(index_dir)
+        self._searcher = LuceneSearcher(index_dir)
+        self.set_language(self._language)
 
     def set_language(self, language: str):
         """Set the language of the searcher.
@@ -52,25 +58,23 @@ class BM25Searcher:
         self._searcher.set_language(language)
 
     def search(self, query: str, top_k: int) -> Optional[list]:
-        """Search relevant documents based on the query.
-        The result is filtered by a score threshold.
+        """
+        Search relevant documents from the document base.
 
-        Parameters
-        ----------
-            query (str): Query, question asked.
-
-        Returns
-        -------
-            DataFrame: The resulting data frame is indexed by "id",
-            and it has columns:
-            - score: Matching score.
-            - contents: Contents of each document.
+        :param query: The query to search.
+        :param top_k: The number of documents to return.
+        :return: The relevant documents.
+        > structure:
+        [
+            {
+                "chunk_id": <chunk_id>,
+                "score": <score>,
+            },
+            ...
+        ]
         """
 
-        # search results
-        hits = self._searcher.search(query, k=top_k)
-
-        return self.convert_hits(hits)
+        return self.convert_hits(self._searcher.search(query, k=top_k))
 
     @staticmethod
     def get_score_thres(scores: np.ndarray) -> float:

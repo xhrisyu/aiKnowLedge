@@ -9,13 +9,13 @@ import os
 from pprint import pprint
 
 from aiknowledge.utils.file_converter import docx2markdown
-from aiknowledge.utils.tools import get_file_name
+from aiknowledge.utils.tools import get_file_name, get_file_extension
 from aiknowledge.rag.store.loader import load_and_split
 from aiknowledge.rag.store.doc_store import store_document, store_chunks, construct_lucene_index
 from aiknowledge.rag.store.vector_store import store_chunks_vectors
 
 
-audit_file_folder = "../../document/audit_file"
+audit_file_folder = "../../document/intflex_audit"
 store_folder = "../uploaded_file/intflex_audit"
 
 
@@ -44,28 +44,34 @@ def load_raw_document_and_preprocess():
         docx2markdown(docx_file, output_dir=os.path.join(store_folder, file_name))
 
 
-def split_chunk_and_store(chunk_size: int = 250, overlap_size: int = 60, separators=None):
+def split_chunk_and_store(given_file_name_list: list[str] = None):
 
     # 2. 文档分块
 
-    if separators is None:
-        separators = ["\n\n", "\n"]
-
-    md_file_list = []
+    file_list = []
     for root, dirs, files in os.walk(store_folder):
         for file in files:
-            if file.endswith(".md"):
-                md_file_list.append(os.path.abspath(os.path.join(root, file)))
+            if file.endswith(".md") or file.endswith(".txt"):
+                file_list.append(os.path.abspath(os.path.join(root, file)))
 
-    md_file_list.sort()
-    # pprint(md_file_list)
+    file_list.sort()
 
-    for md_file in md_file_list:
-        file_name = get_file_name(md_file, with_extension=False)
-        print(f"Splitting {md_file} into chunks...")
+    for file_path in file_list:
+        file_name = get_file_name(file_path, with_extension=False)
+
+        if given_file_name_list and file_name not in given_file_name_list:
+            continue
+
+        print(f"Processing {file_name}...")
+
+        doc_type = get_file_extension(file_path, with_dot=False, upper_case=True)
+        print(f"Splitting {file_path} into chunks...")
 
         # Get doc metadata and chunk data
-        doc_metadata, chunk_data_list = load_and_split(md_file, chunk_size, overlap_size, separators)
+        if doc_type == "MD":
+            doc_metadata, chunk_data_list = load_and_split(file_path, 300, 50, ["\n\n"])
+        else:
+            doc_metadata, chunk_data_list = load_and_split(file_path, 300, 50, ["\n\n", "\n", "。"])
         print(f">> {file_name} has been split into chunks.")
 
         # Store doc metadata to MongoDB
@@ -73,30 +79,66 @@ def split_chunk_and_store(chunk_size: int = 250, overlap_size: int = 60, separat
         print(f">> {file_name} metadata has been stored in MongoDB.")
 
         # Store chunk data to MongoDB
-        store_chunks(chunk_data_list, "intflex_audit", "chunk_data")
+        if file_name in ["QSA通用V4.0（光迅）", "QPA-PCB V2.0（光迅）"]:
+            store_chunks(chunk_data_list, "intflex_audit", "qa")
+        else:
+            store_chunks(chunk_data_list, "intflex_audit", "chunk_data")
         print(f">> {file_name} chunks have been stored in MongoDB.")
 
-    # Create Lucene index
-    document_json_dir = "../uploaded_file/document_json"
-    index_dir = "../uploaded_file/indexes/lucene-index"
+
+def create_lucene_index():
 
     construct_lucene_index(
-        database_name="intflex_audit",
-        collection_name="chunk_data",
-        document_json_dir=os.path.abspath(document_json_dir),
-        index_dir=os.path.abspath(index_dir)
+        mongo_database_name="intflex_audit",
+        mongo_collection_name="chunk_data",
+        document_json_dir=os.path.abspath("../uploaded_file/document_json"),
+        index_dir=os.path.abspath("../uploaded_file/indexes/chunk_data_index")
     )
+
+    construct_lucene_index(
+        mongo_database_name="intflex_audit",
+        mongo_collection_name="qa",
+        document_json_dir=os.path.abspath("../uploaded_file/document_json"),
+        index_dir=os.path.abspath("../uploaded_file/indexes/qa_index")
+    )
+
     print(f"Lucene index has been constructed.")
 
 
 def store_vectors_to_qdrant():
+    # store_chunks_vectors(
+    #     mongo_database_name="intflex_audit", mongo_collection_name="chunk_data",
+    #     qdrant_collection_name="intflex_audit"
+    # )
+
     store_chunks_vectors(
-        mongo_database_name="intflex_audit",
-        mongo_collection_name="chunk_data",
+        mongo_database_name="intflex_audit", mongo_collection_name="chunk_data",
         qdrant_collection_name="intflex_audit"
     )
 
+    # store_chunks_vectors(
+    #     mongo_database_name="intflex_audit", mongo_collection_name="qa",
+    #     qdrant_collection_name="intflex_audit_qa"
+    # )
 
-# load_raw_document_and_preprocess()
-# split_chunk_and_store(250, 60, ["\n\n", "\n"])
-store_vectors_to_qdrant()
+
+if __name__ == "__main__":
+
+    # load_raw_document_and_preprocess()
+
+    # to_process_file_name_list = [
+    #     "ZC-1-M-284 PCB天准LDI参数设定表（A1）",
+    #     "ZC-2-M-088测试不良标识及打孔操作规范（B1）",
+    #     "ZC-2-M-153 PCB产品工序运输标准作业指导书（A1）",
+    #     "ZC-2-M-164 PCB AOI扫描标准作业指导书（A）",
+    #     "ZC-M-004 信息安全管理手册 (A)",
+    #     "ZC-QP-079信息安全风险识别与评价管理程序（A）",
+    #     "QSA通用V4.0（光迅）",
+    #     "QPA-PCB V2.0（光迅）"
+    # ]
+    # split_chunk_and_store(given_file_name_list=to_process_file_name_list)
+    # split_chunk_and_store()
+
+    # store_vectors_to_qdrant()
+
+    create_lucene_index()

@@ -158,10 +158,13 @@ class QAQdrantClient(QdrantClient):
 
         """
         > info structure:
-        {
-            "doc_id": <doc_id>,
-            "score": <similarity, [0, 1]>
-        }
+        [
+            {
+                "doc_id": <doc_id>,
+                "score": <similarity, [0, 1]>
+            },
+            ...
+        ]
         """
         points = self.search(
             collection_name=self._collection_name,
@@ -375,21 +378,25 @@ class KBMongoClient(MongoClient):
     ) -> tuple[str | Any, int | Any, str | Any, str | Any, str | Any]:
 
         # Checkout to target collection
-        chunk_collection = self[database_name][collection_name]
+        collection = self[database_name][collection_name]
 
         # Get doc_id, doc_name and chunk_seq
-        doc_id = chunk_collection.find_one({"chunk_id": chunk_id}).get("doc_id", "")
-        doc_name = chunk_collection.find_one({"chunk_id": chunk_id}).get("doc_name", "")
-        chunk_seq = chunk_collection.find_one({"chunk_id": chunk_id}).get("chunk_seq", "")
+        mongo_document = collection.find_one({"chunk_id": chunk_id})
+        if mongo_document:
+            doc_id = mongo_document.get("doc_id", "")
+            doc_name = mongo_document.get("doc_name", "")
+            chunk_seq = mongo_document.get("chunk_seq", "")
+        else:
+            return "", "", "", "", ""
 
         # Get previous, current and next chunk content
-        pre_chunk = chunk_collection.find_one({"doc_id": doc_id, "chunk_seq": chunk_seq - 1})
+        pre_chunk = collection.find_one({"doc_id": doc_id, "chunk_seq": chunk_seq - 1})
         pre_content = pre_chunk.get("content", "") if pre_chunk else ""
 
-        chunk = chunk_collection.find_one({"doc_id": doc_id, "chunk_seq": chunk_seq})
+        chunk = collection.find_one({"doc_id": doc_id, "chunk_seq": chunk_seq})
         content = chunk.get("content", "") if chunk else ""
 
-        next_chunk = chunk_collection.find_one({"doc_id": doc_id, "chunk_seq": chunk_seq + 1})
+        next_chunk = collection.find_one({"doc_id": doc_id, "chunk_seq": chunk_seq + 1})
         next_content = next_chunk.get("content", "") if next_chunk else ""
 
         return doc_name, chunk_seq, pre_content, content, next_content
