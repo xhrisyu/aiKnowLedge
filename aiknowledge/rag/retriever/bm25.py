@@ -12,7 +12,6 @@ class BM25Searcher:
     -----
         The basic usage of `LuceneSearcher` follows the user guide:
         https://github.com/castorini/pyserini/blob/master/docs/usage-search.md
-
     """
 
     def __init__(
@@ -20,13 +19,12 @@ class BM25Searcher:
             index_dir: os.PathLike | str,
             language="zh"
     ) -> None:
-        """A searcher that searches relevant documents
-        from the provided document base.
+        """
+        A searcher that searches relevant documents from the provided document base.
 
         Parameters
         ----------
-            index_dir (PathLike): Directory where the trained metadata
-            of the searched is stored.
+            index_dir (PathLike): Directory where the trained metadata of the searched is stored.
             documents (Series): The documents to search.
             language (str): Language.
         """
@@ -48,7 +46,8 @@ class BM25Searcher:
         self.set_language(self._language)
 
     def set_language(self, language: str):
-        """Set the language of the searcher.
+        """
+        Set the language of the searcher.
 
         Parameters
         ----------
