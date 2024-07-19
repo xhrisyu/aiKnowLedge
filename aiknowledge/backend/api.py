@@ -8,7 +8,7 @@ from pymongo import MongoClient
 from bson.objectid import ObjectId
 
 from aiknowledge.config import app_config
-from aiknowledge.db import QAQdrantClient
+from aiknowledge.db import KBQdrantClient
 from aiknowledge.llm import OpenAILLM
 from aiknowledge.backend.api_paths import APIPaths
 from aiknowledge.backend.models import *
@@ -29,7 +29,7 @@ async def lifespan(FastAPI_app: FastAPI):
         ))
     FastAPI_app.state.qdrant_client = await loop.run_in_executor(
         None,
-        lambda: QAQdrantClient(
+        lambda: KBQdrantClient(
             url=qdrant_config["url"],
             collection_name=qdrant_config['collection_name']["general"],
             embedding_dim=qdrant_config["embedding_dim"]

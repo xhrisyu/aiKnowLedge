@@ -1,10 +1,10 @@
 
 from aiknowledge.config import app_config
-from aiknowledge.db import QAQdrantClient
+from aiknowledge.db import KBQdrantClient
 
 # Get Qdrant client
 qdrant_config = app_config.get("qdrant")
-vecdb_client = QAQdrantClient(
+vecdb_client = KBQdrantClient(
     url=qdrant_config["url"],
     collection_name=qdrant_config['collection_name']["general"],
     embedding_dim=qdrant_config["embedding_dim"]

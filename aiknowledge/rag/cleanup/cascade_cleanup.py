@@ -2,7 +2,7 @@ import time
 from pymongo import MongoClient
 
 from aiknowledge.config import app_config
-from aiknowledge.db import QAQdrantClient
+from aiknowledge.db import KBQdrantClient
 
 
 # Get Mongo client
@@ -12,7 +12,7 @@ mongo_client = MongoClient(mongo_config['uri'])
 
 # Get Qdrant client
 qdrant_config = app_config.get("qdrant")
-vecdb_client = QAQdrantClient(
+vecdb_client = KBQdrantClient(
     url=qdrant_config["url"],
     collection_name=qdrant_config['collection_name']["intflex_audit"],
     embedding_dim=qdrant_config["embedding_dim"]

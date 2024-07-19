@@ -62,14 +62,13 @@ class OpenAILLM:
             self,
             user_question: str,
             context: Optional[str],
-            chat_history: list[dict],
+            qa_history: list[dict] | str,
             temperature: Optional[float] = 0.2,
             model_name: Optional[str] = None
     ) -> Generator[str, None, Optional[int]]:  # Generator[YieldType, SendType, ReturnType]
         messages = [
             # {"role": "system", "content": },
-            # *chat_history,
-            {"role": "user", "content": f"{KNOWLEDGE_QA_PROMPT}{context}\n用户问题：{user_question}\n"}
+            {"role": "user", "content": f"{KNOWLEDGE_QA_PROMPT.format(CONTEXT=context, QA_HISTORY=qa_history)}\n用户问题：{user_question}"}
         ]
         response_stream = self._chat_completion.create(
             model=self.CHAT_MODEL if not model_name else model_name,
