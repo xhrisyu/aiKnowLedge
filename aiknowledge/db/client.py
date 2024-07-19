@@ -8,7 +8,7 @@ from pymongo import MongoClient
 
 
 # ========================= Qdrant Client =========================
-class QAQdrantClient(QdrantClient):
+class KBQdrantClient(QdrantClient):
     def __init__(self, collection_name: str, embedding_dim: int = 1536, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         # Create a new collection if it does not exist
@@ -154,18 +154,17 @@ class QAQdrantClient(QdrantClient):
         :param top_k: number of similar vectors to retrieve
         :param sim_lower_bound: similarity lower bound
         :return: list of PointStruct information
-        """
 
-        """
-        > info structure:
+        > return structure:
         [
             {
-                "doc_id": <doc_id>,
+                "chunk_id": <chunk_id>,
                 "score": <similarity, [0, 1]>
             },
             ...
         ]
         """
+
         points = self.search(
             collection_name=self._collection_name,
             query_vector=query_vector,
