@@ -28,6 +28,7 @@ from pdf2image import convert_from_path
 from PIL import Image, ImageEnhance, ImageFilter
 import fitz
 import pytesseract
+from bs4 import BeautifulSoup, NavigableString, Comment
 
 from docx import Document
 from docx.document import Document as _Document
@@ -35,6 +36,7 @@ from docx.oxml.text.paragraph import CT_P
 from docx.oxml.table import CT_Tbl
 from docx.table import _Cell, Table, _Row
 from docx.text.paragraph import Paragraph
+
 
 from .tools import get_file_name
 
@@ -46,6 +48,7 @@ def docx2markdown(
     output_dir: str
 ):
     def extract_and_save_images(markdown_text: str, root_output_dir: str, file_name: str):
+
         # Create output folder
         image_output_dir = os.path.join(root_output_dir, "image")
         Path(root_output_dir).mkdir(parents=True, exist_ok=True)
@@ -83,31 +86,51 @@ def docx2markdown(
         title_pattern = r'^\s*\**\s*(\d+(\.\d+)*\s?.+?)\s*\**\s*$'
         markdown_text = re.sub(title_pattern, replace_with_header, markdown_text, flags=re.MULTILINE)
 
-        # Remove image caption
-        markdown_text = re.sub(r'!\[[^\]]*\]\((\./image/image_[^\)]+)\)', r'![](\1)', markdown_text)
+        # Remove <a></a> tags and their contents
+        markdown_text = re.sub(r'<a[^>]*>(.*?)</a>', '', markdown_text)
 
-        # Replace the redundant line breaks
-        markdown_text = markdown_text.replace("\n\n\n", "\n\n").replace("\n\n\n", "\n\n")
+        # Regular expression to remove 'alt="..."' attributes from <img> tags
+        markdown_text = re.sub(r'(<img[^>]*?)\s*alt="[^"]*"([^>]*>)', r'\1\2', markdown_text)
 
-        # if the space appear behind the #, skip
-        # else delete the redundant space
-        markdown_text = re.sub(r'(?<!#) +', '', markdown_text)
-        markdown_text = re.sub(r'(?<=#) +', ' ', markdown_text)
+        # Convert html tags to Markdown format
+        markdown_text = convert_html_table_to_pipe_table(markdown_text)
 
+        # Regular expression to remove tags but keep the text inside them
+        markdown_text = iteratively_unwrap_tags_with_regex(markdown_text,
+                                                           tags_to_unwrap=['p', 'strong', 'tbody', 'tr', 'td', 'th',
+                                                                           'li'])
+
+        # Replace img tag with Markdown format
+        markdown_text = replace_img_tags(markdown_text)
+
+        # Remove <ol> <ul> with text and add new line
+        markdown_text = remove_tags_with_new_line(markdown_text, tags_to_unwrap=['ol', 'ul'])
+
+        # Remove void tag
+        markdown_text = remove_empty_tags(markdown_text)
+
+        # Replace all the blank
+        markdown_text = clean_text(markdown_text)
 
         # Save markdown file
         with open(os.path.join(root_output_dir, f"{file_name}.md"), "w", encoding="utf-8") as file:
             file.write(markdown_text)
 
     def get_markdown_from_command(command):
-        result = subprocess.run(command, shell=True, capture_output=True, text=True)
-        if result.returncode != 0:
-            raise Exception(f"Command failed: {result.stderr}")
-        return result.stdout
+        command_result = subprocess.run(command, shell=True, capture_output=True, text=True)
+        if command_result.returncode != 0:
+            raise Exception(f"Command failed: {command_result.stderr}")
+        return command_result.stdout
+
+    def clean_text(text):
+        text = re.sub(r'\n+', '\n', text)  # 替换多个连续换行为一个换行
+        text = re.sub(r' +', ' ', text)  # 替换多个连续空格为一个空格
+        return text
 
     def replace_with_header(match):
         # Get the number of the header
         header_text = match.group(1).strip()
+        # print(">", header_text)
 
         # Check if the header contains any of the following punctuation
         check_items = [",", "，", "。", ";", "；"]
@@ -130,6 +153,90 @@ def docx2markdown(
             return match.group(0)  # No change for other headers
 
         return f"\n{header_level} {header_text}\n"
+
+    def convert_html_table_to_pipe_table(html_str: str):
+        # Parse the HTML using BeautifulSoup
+        _soup = BeautifulSoup(html_str, 'html.parser')
+
+        # Remove the outermost table
+        first_table = _soup.find('table')
+        if first_table:
+            first_table.unwrap()
+        html_str = str(_soup)
+
+        _soup = BeautifulSoup(html_str, 'html.parser')
+
+        # Find the all table
+        tables = _soup.find_all('table')
+
+        for table in tables:
+            markdown_table = []
+
+            # Process table headers
+            headers = table.find('tr').find_all('th')
+            header_row = '| ' + ' | '.join(header.get_text(strip=True) for header in headers) + ' |'
+            markdown_table.append(header_row)
+            markdown_table.append('|' + ' --- |' * len(headers))
+
+            # Process table rows
+            for _row in table.find_all('tr')[1:]:  # skip the header row
+                cols = _row.find_all(['td', 'th'])  # can be 'td' or 'th' if the data rows use 'th'
+                row_text = '| ' + ' | '.join(col.get_text(strip=True) for col in cols) + ' |'
+                markdown_table.append(row_text)
+
+            markdown_table_string = "\n".join(markdown_table)
+            markdown_table_string_nav = NavigableString(markdown_table_string)
+            table.replace_with("\n\n" + markdown_table_string_nav + "\n\n")
+
+        return str(_soup)
+
+    def remove_empty_tags(html_str):
+        _soup = BeautifulSoup(html_str, 'html.parser')
+
+        # Iterate over all tags
+        for tag in _soup.find_all():
+            if (tag.name not in ['br', 'hr', 'img'] and  # These tags are self-closing and should not be removed
+                    not tag.contents or  # Checks if the tag is empty
+                    (len(tag.contents) == 1 and  # Checks if the tag contains only one item
+                     isinstance(tag.contents[0], Comment))):  # Ensures it's not just a comment inside
+                tag.decompose()  # Remove the tag from the soup
+
+        return str(_soup)
+
+    def replace_img_tags(html_str: str) -> str:
+
+        _soup = BeautifulSoup(html_str, 'html.parser')
+
+        # Find all <img> tags and replace them with Markdown format
+        for img in _soup.find_all('img'):
+            src = img.get('src')
+            alt = img.get('alt', '')
+            # Create the markdown replacement string
+            markdown_img = f"![{alt}]({src})"
+            # Replace the <img> tag with a NavigableString containing the markdown
+            img.replace_with(NavigableString(markdown_img))
+
+        return str(_soup)
+
+    def iteratively_unwrap_tags_with_regex(html_str: str, tags_to_unwrap=None) -> str:
+        if tags_to_unwrap is None:
+            tags_to_unwrap = ['p', 'tbody', 'tr', 'td']
+        regex_pattern = fr'<({"|".join(tags_to_unwrap)})\b[^>]*>(.*?)</\1>'
+        previous_html = ""
+
+        # Continue looping until no changes are made to the HTML string
+        while previous_html != html_str:
+            previous_html = html_str
+            html_str = re.sub(regex_pattern, r'\2', html_str, flags=re.DOTALL)
+
+        return html_str
+
+    def remove_tags_with_new_line(html_str, tags_to_unwrap: list[str]) -> str:
+        replaced_str = html_str
+        for tag in tags_to_unwrap:
+            replaced_str = replaced_str.replace(f"<{tag}>", "\n\n")
+            replaced_str = replaced_str.replace(f"</{tag}>", "\n")
+        return replaced_str
 
     # Convert DOCX to Markdown
     w2m_command = f'source ~/.bash_profile && w2m "{docx_file_abs_path}"'

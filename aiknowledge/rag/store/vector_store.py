@@ -3,6 +3,7 @@ Embed chunk data and store in the database [Qdrant]
 """
 import time
 from pymongo import MongoClient
+from tqdm import tqdm
 
 from aiknowledge.config import app_config
 from aiknowledge.db import KBQdrantClient
@@ -63,7 +64,7 @@ def store_chunks_vectors(
     retry_delay = 0.5  # Retry delay in seconds
     total_inserted_num = 0
 
-    for chunk_data in chunk_data_list:
+    for chunk_data in tqdm(chunk_data_list):
         print(f"Processing chunk {chunk_data['chunk_id']} in [{chunk_data['doc_name']}]...")
 
         # Check whether the chunk has been embedded and inserted

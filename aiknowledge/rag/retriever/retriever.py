@@ -140,7 +140,7 @@ def retrieve_payloads_and_format(
             top_k=5
         )
 
-    formatted_retrieve_payloads = format_retrieve_payload_parallel(
+    formatted_retrieve_payloads = format_retrieve_payload(
         retrieve_method=retrieve_method,
         retrieve_payloads=retrieve_payloads,
         mongo_client=mongo_client,
@@ -275,6 +275,9 @@ def process_query(
     ###############################################
     # Reranking chunk data
     chunks_candidate = vector_retrieve_payloads + keyword_retrieve_payloads
+    # from pprint import pprint
+    # pprint(chunks_candidate)
+    # print("")
     hybrid_retriever.setup_reranking(rankings=chunks_candidate, k=top_k)
     reranking_item_list = hybrid_retriever.get_cross_encoder_scores(query=user_query)
     # Get original content from `chunks_candidate`

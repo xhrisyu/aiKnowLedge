@@ -74,8 +74,8 @@ RUN mkdir -p /usr/lib/jvm \
 # Set JAVA_HOME and JVM_PATH environment variables
 #ENV JAVA_HOME="/usr/lib/jvm/java-21-openjdk-amd64"
 #ENV JVM_PATH="/usr/lib/jvm/java-21-openjdk-amd64/lib/server/libjvm.so"
-ENV JAVA_HOME="/usr/lib/jvm/jdk-21.0.3"
-ENV JVM_PATH="/usr/lib/jvm/jdk-21.0.3/lib/server/libjvm.so"
+ENV JAVA_HOME="/usr/lib/jvm/jdk-21.0.4"
+ENV JVM_PATH="/usr/lib/jvm/jdk-21.0.4/lib/server/libjvm.so"
 ENV PATH="$JAVA_HOME/bin:$PATH"
 
 # Upgrade pip

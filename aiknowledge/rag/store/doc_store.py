@@ -39,8 +39,10 @@ def store_document(
     # Check if the document already exists based on the doc_name
     if not collection.find_one({"doc_name": doc_metadata["doc_name"]}):
         collection.insert_one(doc_metadata)
+        return 1
     else:
         print(f"Document {doc_metadata['doc_name']} already exists in the database.")
+        return 0
 
 
 def store_chunks(
@@ -70,6 +72,25 @@ def store_chunks(
             collection.insert_one(chunk_data)
         else:
             print(f"Chunk {chunk_data['doc_name']}<{chunk_data['chunk_id']}> already exists in the database.")
+
+
+def cleanup_chunks(
+        doc_name: str,
+        database_name: str,
+        collection_name: str,
+):
+    """
+    Remove the chunks of the document from the database
+
+    :param doc_name: name of the document
+    :param database_name: name of the database
+    :param collection_name: name of the collection
+    """
+    database = mongo_client[database_name]
+    collection = database[collection_name]
+
+    # Remove the chunks of the document
+    collection.delete_many({"doc_name": doc_name})
 
 
 def construct_lucene_index(
