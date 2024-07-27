@@ -123,14 +123,14 @@ def create_lucene_index():
     construct_lucene_index(
         mongo_database_name="intflex_audit",
         mongo_collection_name="chunk_data",
-        document_json_dir=os.path.abspath("../uploaded_file/document_json"),
+        document_json_dir=os.path.abspath("../uploaded_file/json_chunk_data"),
         index_dir=os.path.abspath("../uploaded_file/indexes/chunk_data_index")
     )
 
     construct_lucene_index(
         mongo_database_name="intflex_audit",
         mongo_collection_name="qa",
-        document_json_dir=os.path.abspath("../uploaded_file/document_json"),
+        document_json_dir=os.path.abspath("../uploaded_file/json_qa"),
         index_dir=os.path.abspath("../uploaded_file/indexes/qa_index")
     )
 

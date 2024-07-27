@@ -6,6 +6,8 @@ from aiknowledge.config import app_config
 # Init cohere client
 re_ranking_config = app_config.get("cohere")
 api_keys = re_ranking_config.get("api_keys")
+
+
 # co = cohere.Client(api_key=random.choice(api_keys))
 
 
@@ -33,9 +35,11 @@ class ReRanking:
         [
             {
                 "chunk_id": "",
+                "chunk_seq": 1,
                 "content": "",
-                "score": "",
-                "ranking_method": ""
+                "doc_name": "",
+                "ranking_method": "",
+                "score": 0.8,
             },
             ...
         ]
@@ -53,7 +57,6 @@ class ReRanking:
     def set_ranking(self, ranking: list[dict]):
         self._rankings = ranking
 
-    # Extract all the pairs of the id and content
     def extract_all_contents(self) -> list[tuple]:
         """
         Extract all the pairs of the chunk_id and content
@@ -120,14 +123,14 @@ class ReRanking:
 
         return self.sort_by(records, "re_ranking_score")[: self._k]
 
-    # Calculate Cross Encoder scores for all the chunks and return the ids records
     def get_cross_encoder_scores(self, query: str) -> list[dict]:
         """
-        Get the cross encoder scores for all the chunks
+        Get the cross encoder scores for all the chunks and return the ids records
 
         :param query: The query to search.
         :return: The relevant documents.
-        > structure:
+
+        structure:
         [
             {
                 "chunk_id": <chunk_id>,
@@ -136,6 +139,7 @@ class ReRanking:
             },
             ...
         ]
+
         """
         results = self._co.rerank(
             model=self.COHERE_CROSS_ENCODER_MODEL_NAME,
@@ -155,4 +159,3 @@ class ReRanking:
         } for (index, score) in re_ranking_results]
 
         return self.sort_by(records, "re_ranking_score")[: self._k]
-
