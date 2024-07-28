@@ -6,7 +6,6 @@ $ QA request use llm client directly, not through FastAPI backend [streaming out
 """
 import json
 import time
-
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import streamlit as st
 from streamlit_float import float_init, float_css_helper, float_parent
@@ -14,7 +13,7 @@ from streamlit_float import float_init, float_css_helper, float_parent
 from aiknowledge.config import app_config
 from aiknowledge.llm import OpenAILLM
 from aiknowledge.db import KBQdrantClient, KBMongoClient
-from aiknowledge.rag.retriever.bm25 import BM25Searcher
+from aiknowledge.rag.retriever.bm25 import BM25
 from aiknowledge.rag.retriever.retriever import retrieve_pipeline
 from aiknowledge.webui.constants import LUCENE_INDEX_DIR_INTFLEX_AUDIT_CHUNK_DATA
 
@@ -176,7 +175,7 @@ def chatbot_page():
                                             entity_list=entity_list,
                                             llm_client=llm_client,
                                             qdrant_client=qdrant_client,
-                                            keyword_retriever=BM25Searcher(index_dir=LUCENE_INDEX_DIR_INTFLEX_AUDIT_CHUNK_DATA),
+                                            keyword_retriever=BM25(index_dir=LUCENE_INDEX_DIR_INTFLEX_AUDIT_CHUNK_DATA),
                                             mongo_client=mongo_client,
                                             vector_search_params=vector_search_params,
                                             keyword_search_params=keyword_search_params,

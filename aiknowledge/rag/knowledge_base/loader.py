@@ -78,7 +78,7 @@ def load_and_split(
         "doc_name": <name of the original file>,
         "chunk_id": <uuid4>,
         "chunk_seq": <chunk sequence in this doc, same doc_id file have multiple chunks>,
-        "content": "这是当前chunk的原文片段",
+        "content": <这是当前chunk的原文片段>,
         "in_vector_db": <True of False>, 
     }
     """
@@ -148,7 +148,7 @@ def load_and_split(
 #             document)  # structure: [Document(page_content="**chunk_1**", metadata={"source": "file_abs_path"}), ...]
 #         print(split_document)
 #
-#         # Add metadata to each store, and reconstruct data to fit the format of Qdrant insertion
+#         # Add metadata to each knowledge_base, and reconstruct data to fit the format of Qdrant insertion
 #         vector_points = []
 #         for idx, doc in enumerate(split_document):
 #             vec_id = str(uuid4())  # Generate vector_id in Vector DB by uuid

@@ -1,6 +1,5 @@
 from typing import Optional, List, Dict, Sequence, Union, Any, Tuple
 from qdrant_client import QdrantClient, models
-from qdrant_client.conversions import common_types as types
 from qdrant_client.http.models import Filter, FieldCondition, MatchValue
 from qdrant_client.models import PointStruct, VectorParams, Distance
 

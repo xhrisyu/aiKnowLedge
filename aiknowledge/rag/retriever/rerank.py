@@ -1,18 +1,8 @@
+from typing import Optional, Any
 import cohere
-from typing import Optional, Set, Any
-
-from aiknowledge.config import app_config
-
-# Init cohere client
-re_ranking_config = app_config.get("cohere")
-api_keys = re_ranking_config.get("api_keys")
 
 
-# co = cohere.Client(api_key=random.choice(api_keys))
-
-
-# Class of re-Rankings      
-class ReRanking:
+class Rerank:
     RECIPROCAL_RANK_FUSION = "rrf"
     CROSS_ENCODER = "cross_encoder"
     COHERE_CROSS_ENCODER_MODEL_NAME = "rerank-multilingual-v3.0"

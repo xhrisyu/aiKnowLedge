@@ -6,7 +6,7 @@ import re
 from pyserini.search.lucene import LuceneSearcher
 
 
-class BM25Searcher:
+class BM25:
     """
     Notes
     -----

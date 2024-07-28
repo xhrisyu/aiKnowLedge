@@ -1,13 +1,11 @@
 import os
-
 import pandas as pd
 import streamlit as st
 from streamlit_option_menu import option_menu
 import hmac
 
 from aiknowledge.webui.chatbot import chatbot_page
-# from aiknowledge.webui.kb_management import kb_management_page
-# from aiknowledge.webui.quiz_generator import quiz_generator_page
+
 
 VERSION = "1.0.0"
 
@@ -32,7 +30,7 @@ def check_password():
             st.secrets.passwords[st.session_state["username"]],
         ):
             st.session_state["password_correct"] = True
-            del st.session_state["password"]  # Don't store the username or password.
+            del st.session_state["password"]  # Don't knowledge_base the username or password.
             del st.session_state["username"]
         else:
             st.session_state["password_correct"] = False

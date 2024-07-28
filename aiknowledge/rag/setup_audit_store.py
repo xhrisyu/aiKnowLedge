@@ -10,9 +10,8 @@ from pprint import pprint
 
 from aiknowledge.utils.file_converter import docx2markdown
 from aiknowledge.utils.tools import get_file_name, get_file_extension
-from aiknowledge.rag.store.loader import load_and_split
-from aiknowledge.rag.store.doc_store import store_document, store_chunks, construct_lucene_index, cleanup_chunks
-from aiknowledge.rag.store.vector_store import store_chunks_vectors
+from aiknowledge.rag.knowledge_base.loader import load_and_split
+from aiknowledge.rag.knowledge_base.store import store_metadatas, store_chunks, construct_lucene_index, cleanup_chunks, store_chunks_vectors
 
 
 import_file_folder = "../../document/new_import_docx"
@@ -86,7 +85,7 @@ def split_chunk_and_store(given_file_name_list: list[str] = None):
         print(f">> {file_name} has been split into chunks.")
 
         # Store doc metadata to MongoDB
-        metadata_insert_num = store_document(doc_metadata, "intflex_audit", "doc_metadata")
+        metadata_insert_num = store_metadatas(doc_metadata, "intflex_audit", "doc_metadata")
         print(f">> {file_name} metadata has been stored in MongoDB.")
 
         # Store chunk data to MongoDB

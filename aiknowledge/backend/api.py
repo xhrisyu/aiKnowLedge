@@ -12,7 +12,7 @@ from aiknowledge.db import KBQdrantClient
 from aiknowledge.llm import OpenAILLM
 from aiknowledge.backend.api_paths import APIPaths
 from aiknowledge.backend.models import *
-from aiknowledge.rag.store.loader import load_and_split
+from aiknowledge.rag.knowledge_base.loader import load_and_split
 
 
 @asynccontextmanager
