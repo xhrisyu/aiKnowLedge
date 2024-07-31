@@ -77,8 +77,8 @@ with st.sidebar:
         default_index=0,
     )
 
-if not check_password():
-    st.stop()
+# if not check_password():
+#     st.stop()
 
 # if selected_item == "主页":
 #     st.title("Welcome to aiKnowLedge🤓")
