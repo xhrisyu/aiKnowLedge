@@ -16,7 +16,7 @@ from aiknowledge.rag.knowledge_base.store import store_metadatas, store_chunks, 
 
 import_file_folder = "../../document/new_import_docx"
 md_file_folder = "../uploaded_file/intflex_2"
-record_failed_file = "../uploaded_file/failed_file_2.txt"
+record_failed_file = "../uploaded_file/failed_file.txt"
 
 
 def load_raw_document_and_preprocess():

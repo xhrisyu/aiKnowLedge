@@ -98,6 +98,14 @@ class OpenAILLM:
                 self._stream_chat_token_usage += chunk.usage.total_tokens  # only the last chunk has the total token count
 
     def query_decomposition(self, user_question: str, model_name: Optional[str] = None) -> LLMAPIResponse:
+        """
+        llm response json format:
+
+        {
+            <no query>: {"type": <0: casual/1: enterprise>, "query": <query 1>},
+            ...
+        }
+        """
         messages = [
             {"role": "user", "content": QUERY_DECOMPOSITION_PROMPT + user_question}
         ]
@@ -112,6 +120,14 @@ class OpenAILLM:
         return LLMAPIResponse(response.choices[0].message.content, token_usage)
 
     def entity_recognition(self, user_question: str, model_name: Optional[str] = None) -> LLMAPIResponse:
+        """
+        llm response json format:
+
+        {
+            "entity": ["实体1", "实体2", "实体3"]
+        }
+        """
+
         messages = [
             {"role": "user", "content": ENTITY_RECOGNITION_PROMPT + user_question}
         ]

@@ -4,9 +4,7 @@ Chatbot Page
 $ Retrieving documents use qdrant client directly, not through FastAPI backend [http request is slow]
 $ QA request use llm client directly, not through FastAPI backend [streaming output is hard to implement]
 """
-import json
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import streamlit as st
 from streamlit_float import float_init, float_css_helper, float_parent
 
@@ -14,9 +12,11 @@ from aiknowledge.config import app_config
 from aiknowledge.llm import OpenAILLM
 from aiknowledge.db import KBQdrantClient, KBMongoClient
 from aiknowledge.rag.retriever.bm25 import BM25
-from aiknowledge.rag.retriever.retriever import retrieve_pipeline, retrieve_pipeline_parallel
+from aiknowledge.rag.retriever.rerank import Rerank
+from aiknowledge.rag.query_analysis.query_analysis import query_analysis_pipeline, QueryType
 from aiknowledge.webui.constants import LUCENE_INDEX_DIR_INTFLEX_AUDIT_CHUNK_DATA
-
+from aiknowledge.rag.retrieval_augmentation import retrieval_augmentation_pipeline
+from aiknowledge.rag.context_prompt import format_context_prompt, format_qa_history_prompt
 
 vector_search_params = {
     "chunk_data": {
@@ -64,6 +64,17 @@ def get_qdrant_client():
 def get_mongo_client():
     mongo_config = app_config.get("mongo")
     return KBMongoClient(mongo_config['uri'])
+
+
+@st.cache_resource
+def get_hybrid_retriever():
+    hybrid_config = app_config.get("cohere")
+    return Rerank(api_key=hybrid_config["api_key"])
+
+
+@st.cache_resource
+def get_bm25_retriever():
+    return BM25(index_dir=LUCENE_INDEX_DIR_INTFLEX_AUDIT_CHUNK_DATA)
 
 
 def chatbot_page():
@@ -123,112 +134,44 @@ def chatbot_page():
         with st.chat_message("user"):
             st.markdown(user_input)
 
-        # AI Message
-        query_analysis_list = []  # [(query_type: int, query: str, keywords: list), ...]
-        vector_retrieve_payloads_list, qa_vector_retrieve_payloads_list = [], []
-        keyword_retrieve_payloads_list, qa_keyword_retrieve_payloads_list = [], []
-        reranking_payloads_list, qa_reranking_payloads_list = [], []
-
         ###############################################
         # Query Decomposition & Entity Recognition
         ###############################################
         with st.spinner("问题分析中..."):
             time1 = time.time()
-            query_decomposition_response = llm_client.query_decomposition(user_input)
-            query_decomposition_response_json = json.loads(query_decomposition_response.content)
-            # query_decomposition_response_json: {"1": {"type": 0, "query": "xxx"}, ...}
-            # type 0: casual, type 1: enterprise
+            query_analysis_list = query_analysis_pipeline(user_input, llm_client)
             time2 = time.time()
-            print(f"Query decomposition time: {time2 - time1}")
-
-            time1 = time.time()
-            entity_recognition_token_usage = 0
-            for query_decomposition in query_decomposition_response_json.values():
-                cur_query, cur_query_type = query_decomposition.get("query", ""), query_decomposition.get("type", 0)
-
-                # Entity Recognition for each query
-                entity_recognition_response = llm_client.entity_recognition(cur_query)  # {"entity": [...]}
-                entity_recognition_response_json = json.loads(entity_recognition_response.content)
-                query_analysis_list.append(
-                    (cur_query_type, cur_query, entity_recognition_response_json.get("entity", []))
-                )
-                entity_recognition_token_usage += entity_recognition_response.token_usage
-
-            time2 = time.time()
-            print(f"Entity recognition time: {time2 - time1}")
+            print(f"Query analysis time: {time2 - time1}")
 
         ###############################################
         # Retrieve Documents for Each Query
         ###############################################
         with st.spinner("文档检索中..."):
             time1 = time.time()
-            # Retrieve documents for each query
-            # for user_query_type, user_query, entity_list in query_analysis_list:
-            #     print(f"Retrieving: {user_query}...")
-            #     if user_query_type == 0:
-            #         continue
-            #     vector_retrieve_payloads, qa_vector_retrieve_payloads, keyword_retrieve_payloads, qa_keyword_retrieve_payloads, reranking_payloads, qa_reranking_payloads = retrieve_pipeline(
-            #         user_query=user_query,
-            #         entity_list=entity_list,
-            #         llm_client=llm_client,
-            #         qdrant_client=qdrant_client,
-            #         keyword_retriever=BM25(index_dir=LUCENE_INDEX_DIR_INTFLEX_AUDIT_CHUNK_DATA),
-            #         mongo_client=mongo_client,
-            #         vector_search_params=vector_search_params,
-            #         keyword_search_params=keyword_search_params,
-            #         top_k=top_k
-            #     )
-            #     vector_retrieve_payloads_list.append(vector_retrieve_payloads)
-            #     qa_vector_retrieve_payloads_list.append(qa_vector_retrieve_payloads)
-            #     keyword_retrieve_payloads_list.append(keyword_retrieve_payloads)
-            #     qa_keyword_retrieve_payloads_list.append(qa_keyword_retrieve_payloads)
-            #     reranking_payloads_list.append(reranking_payloads)
-            #     qa_reranking_payloads_list.append(qa_reranking_payloads)
-
-            # Retrieve documents for each query in parallel
-            with ThreadPoolExecutor() as executor:
-                futures = []
-                for user_query_type, user_query, entity_list in query_analysis_list:
-                    if user_query_type == 0:
-                        continue
-                    futures.append(
-                        executor.submit(retrieve_pipeline_parallel,
-                                        user_query=user_query,
-                                        entity_list=entity_list,
-                                        llm_client=llm_client,
-                                        qdrant_client=qdrant_client,
-                                        keyword_retriever=BM25(index_dir=LUCENE_INDEX_DIR_INTFLEX_AUDIT_CHUNK_DATA),
-                                        mongo_client=mongo_client,
-                                        vector_search_params=vector_search_params,
-                                        keyword_search_params=keyword_search_params,
-                                        top_k=top_k
-                                        )
-                    )
-                for future in as_completed(futures):
-                    try:
-                        result = future.result()
-                        vector_retrieve_payloads, qa_vector_retrieve_payloads, keyword_retrieve_payloads, qa_keyword_retrieve_payloads, reranking_payloads, qa_reranking_payloads = result
-                        vector_retrieve_payloads_list.append(vector_retrieve_payloads)
-                        qa_vector_retrieve_payloads_list.append(qa_vector_retrieve_payloads)
-                        keyword_retrieve_payloads_list.append(keyword_retrieve_payloads)
-                        qa_keyword_retrieve_payloads_list.append(qa_keyword_retrieve_payloads)
-                        reranking_payloads_list.append(reranking_payloads)
-                        qa_reranking_payloads_list.append(qa_reranking_payloads)
-                    except Exception as e:
-                        print(f"Retrieve documents error: {e}")
-
-        time2 = time.time()
-        print(f"Retrieve documents time: {time2 - time1}")
+            reranking_payloads_list, qa_reranking_payloads_list = retrieval_augmentation_pipeline(
+                query_analysis_list=query_analysis_list,
+                llm_client=llm_client,
+                mongo_client=mongo_client,
+                qdrant_client=qdrant_client,
+                keyword_retriever=get_bm25_retriever(),
+                hybrid_retriever=get_hybrid_retriever(),
+                vector_search_params=vector_search_params,
+                keyword_search_params=keyword_search_params,
+                top_k=top_k
+            )
+            time2 = time.time()
+            print(f"Retrieve documents time: {time2 - time1}")
 
         ###############################################
         # Display Retrieve Documents
         ###############################################
         with retriever_container:
-            for no_query, (user_query_type, user_query, entity_list) in enumerate(query_analysis_list):
+            for no_query, query_analysis in enumerate(query_analysis_list):
+                user_query_type, user_query, entity_list = query_analysis["type"], query_analysis["query"], query_analysis["entity"]
                 st.markdown(f'**问题{no_query + 1}**: :orange[{user_query}]')
-                if user_query_type == 0:
+                if user_query_type == QueryType.CASUAL:
                     st.markdown("**问题类型**: :orange[日常聊天✅]")
-                elif user_query_type == 1:
+                elif user_query_type == QueryType.ENTERPRISE:
                     st.markdown("**问题类型**: :orange[企业知识✅]")
                 st.markdown(f'**关键词**: :orange[{entity_list}]')
 
@@ -245,47 +188,16 @@ def chatbot_page():
 
         ###############################################
         # Generate LLM Response
-        # ! Merge multiple query's retrieved documents into one prompt
         ###############################################
-        # Formatted retrieved documents for prompt
-        prompt_context = ""
-        prompt_context_chunk_ids = []  # !!!! multiple doc retrieve remove duplicate
-        for no_query in range(len(reranking_payloads_list)):
-            for doc in reranking_payloads_list[no_query]:
-                chunk_id = doc["chunk_id"]
-                if chunk_id in prompt_context_chunk_ids:
-                    continue
-                else:
-                    prompt_context_chunk_ids.append(chunk_id)
-
-                doc_name = doc["doc_name"]
-                all_content = doc.get("pre_content", "") + doc.get("content", "") + doc.get("next_content", "")
-                all_content = all_content.replace("\n\n", "\n")
-                prompt_context += f"文本来源:《{doc_name}》\n正文:{all_content}\n<DIVIDER>\n"
-
-        # Formatted retrieved qa documents for prompt
-        qa_prompt_context = ""
-        qa_prompt_context_chunk_ids = []
-        for no_query in range(len(qa_reranking_payloads_list)):
-            for doc in qa_reranking_payloads_list[no_query]:
-                chunk_id = doc["chunk_id"]
-                if chunk_id in qa_prompt_context_chunk_ids:
-                    continue
-                else:
-                    qa_prompt_context_chunk_ids.append(chunk_id)
-
-                content = doc.get("content", "").replace("\n\n", "\n")
-                qa_prompt_context += f"参考历史问答:\n{content}\n"
-
+        # AI Message
         with st.chat_message("assistant"):
+            # Convert retrieval result to context prompt
+            prompt_context = format_context_prompt(reranking_payloads_list)
+            qa_prompt_context = format_qa_history_prompt(qa_reranking_payloads_list)
+
             with st.spinner("AI思考中..."):
-
                 time1 = time.time()
-                if word_limit_mode == "简短回答":
-                    word_limit_num = 50
-                else:
-                    word_limit_num = None
-
+                word_limit_num = 50 if word_limit_mode == "简短回答" else None
                 response_generator = llm_client.stream_chat_response(
                     user_question=user_input,
                     context=prompt_context,
