@@ -15,11 +15,8 @@ from aiknowledge.rag.knowledge_base.store import store_metadatas, store_chunks, 
 
 
 import_file_folder = "../../document/new_import_docx"
-
-# md_file_folder = "../uploaded_file/intflex"
-md_file_folder = "../uploaded_file/intflex_audit"
-
-record_failed_file = "../uploaded_file/failed_file.txt"
+md_file_folder = "../uploaded_file/intflex_2"
+record_failed_file = "../uploaded_file/failed_file_2.txt"
 
 
 def load_raw_document_and_preprocess():
@@ -122,15 +119,15 @@ def create_lucene_index():
     construct_lucene_index(
         mongo_database_name="intflex_audit",
         mongo_collection_name="chunk_data",
-        document_json_dir=os.path.abspath("../uploaded_file/json_chunk_data"),
-        index_dir=os.path.abspath("../uploaded_file/indexes/chunk_data_index")
+        document_json_dir=os.path.abspath("../uploaded_file/document_json/chunk_data"),
+        index_dir=os.path.abspath("../uploaded_file/indexes/chunk_data")
     )
 
     construct_lucene_index(
         mongo_database_name="intflex_audit",
         mongo_collection_name="qa",
-        document_json_dir=os.path.abspath("../uploaded_file/json_qa"),
-        index_dir=os.path.abspath("../uploaded_file/indexes/qa_index")
+        document_json_dir=os.path.abspath("../uploaded_file/document_json/qa"),
+        index_dir=os.path.abspath("../uploaded_file/indexes/qa")
     )
 
     print(f"Lucene index has been constructed.")
@@ -138,7 +135,7 @@ def create_lucene_index():
 
 if __name__ == "__main__":
 
-    # load_raw_document_and_preprocess()
+    load_raw_document_and_preprocess()
 
     # to_process_file_name_list = [
     #     # "ZC-1-M-284 PCB天准LDI参数设定表（A1）",
@@ -157,4 +154,4 @@ if __name__ == "__main__":
 
     # store_vectors_to_qdrant()
 
-    create_lucene_index()
+    # create_lucene_index()

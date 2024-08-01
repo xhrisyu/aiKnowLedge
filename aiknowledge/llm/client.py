@@ -1,7 +1,8 @@
 from typing import Optional, Generator, Any
 from openai import OpenAI
 
-from .prompt import KNOWLEDGE_QA_PROMPT, ENTITY_RECOGNITION_PROMPT, QUERY_DECOMPOSITION_PROMPT
+from .prompt import KNOWLEDGE_QA_PROMPT, ENTITY_RECOGNITION_PROMPT, QUERY_DECOMPOSITION_PROMPT, \
+    KNOWLEDGE_QA_WORD_LIMIT_PROMPT
 
 
 class LLMAPIResponse:
@@ -63,18 +64,31 @@ class OpenAILLM:
             user_question: str,
             context: Optional[str],
             qa_history: list[dict] | str,
-            temperature: Optional[float] = 0.2,
-            model_name: Optional[str] = None
+            temperature: Optional[float] = 0.0,
+            model_name: Optional[str] = None,
+            word_limit: Optional[int] = None
     ) -> Generator[str, None, Optional[int]]:  # Generator[YieldType, SendType, ReturnType]
-        messages = [
-            # {"role": "system", "content": },
-            {"role": "user", "content": f"{KNOWLEDGE_QA_PROMPT.format(CONTEXT=context, QA_HISTORY=qa_history)}\n用户问题：{user_question}"}
-        ]
+        if not word_limit:
+            messages = [
+                {
+                    "role": "user",
+                    "content": f"{KNOWLEDGE_QA_PROMPT.format(CONTEXT=context, QA_HISTORY=qa_history)}\n用户问题：{user_question}"
+                }
+            ]
+        else:
+            messages = [
+                {
+                    "role": "user",
+                    "content": f"{KNOWLEDGE_QA_WORD_LIMIT_PROMPT.format(CONTEXT=context, QA_HISTORY=qa_history, WORD_LIMIT=word_limit)}\n用户问题：{user_question}"
+                }
+            ]
+
         response_stream = self._chat_completion.create(
             model=self.CHAT_MODEL if not model_name else model_name,
             messages=messages,
             temperature=temperature,
             stream=True,
+            seed=42,
             stream_options={"include_usage": True}
         )
         for chunk in response_stream:
@@ -91,7 +105,8 @@ class OpenAILLM:
             model=self.INTENTION_RECOGNITION_MODEL if not model_name else model_name,
             messages=messages,
             response_format={"type": "json_object"},
-            temperature=0.0
+            temperature=0.0,
+            seed=42
         )
         token_usage = response.usage.total_tokens
         return LLMAPIResponse(response.choices[0].message.content, token_usage)
@@ -104,7 +119,8 @@ class OpenAILLM:
             model=self.INTENTION_RECOGNITION_MODEL if not model_name else model_name,
             messages=messages,
             response_format={"type": "json_object"},
-            temperature=0.0
+            temperature=0.0,
+            seed=42
         )
         token_usage = response.usage.total_tokens
         return LLMAPIResponse(response.choices[0].message.content, token_usage)

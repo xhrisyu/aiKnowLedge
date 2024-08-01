@@ -18,6 +18,5 @@ MONGO_COLLECTION_INTFLEX_AUDIT_QA = "qa"
 QDRANT_COLLECTION_INTFLEX_AUDIT_CHUNK_DATA = "intflex_audit"
 QDRANT_COLLECTION_INTFLEX_AUDIT_QA = "intflex_audit_qa"
 
-LUCENE_INDEX_DIR_INTFLEX_AUDIT_CHUNK_DATA = "./aiknowledge/uploaded_file/indexes/chunk_data_index"
-LUCENE_INDEX_DIR_INTFLEX_AUDIT_QA = "./aiknowledge/uploaded_file/indexes/qa_index"
-
+LUCENE_INDEX_DIR_INTFLEX_AUDIT_CHUNK_DATA = "./aiknowledge/uploaded_file/indexes/chunk_data"
+LUCENE_INDEX_DIR_INTFLEX_AUDIT_QA = "./aiknowledge/uploaded_file/indexes/qa"

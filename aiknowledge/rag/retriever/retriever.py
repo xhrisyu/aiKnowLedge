@@ -166,7 +166,7 @@ def bm25_search(
         top_k=top_k
     )
     # Create thread pool executor to process the retrieve payloads in parallel
-    with ThreadPoolExecutor(max_workers=2) as executor:
+    with ThreadPoolExecutor() as executor:
         futures = [executor.submit(get_chunk_payload_task,
                                    retrieve_payload,
                                    mongo_client,
@@ -218,12 +218,12 @@ def retrieve_pipeline_parallel(
     `keyword_search_params` structure:
     {
         "chunk_data": {
-            "lucene_index_dir": "./aiknowledge/uploaded_file/indexes/chunk_data_index",
+            "lucene_index_dir": "./aiknowledge/uploaded_file/indexes/chunk_data",
             "mongo_database_name": "intflex_audit",
             "mongo_collection_name": "chunk_data"
         },
         "qa": {
-            "lucene_index_dir": "./aiknowledge/uploaded_file/indexes/qa_index",
+            "lucene_index_dir": "./aiknowledge/uploaded_file/indexes/qa",
             "mongo_database_name": "intflex_audit",
             "mongo_collection_name": "qa"
         }
@@ -382,12 +382,12 @@ def retrieve_pipeline(
     `keyword_search_params` structure:
     {
         "chunk_data": {
-            "lucene_index_dir": "./aiknowledge/uploaded_file/indexes/chunk_data_index",
+            "lucene_index_dir": "./aiknowledge/uploaded_file/indexes/chunk_data",
             "mongo_database_name": "intflex_audit",
             "mongo_collection_name": "chunk_data"
         },
         "qa": {
-            "lucene_index_dir": "./aiknowledge/uploaded_file/indexes/qa_index",
+            "lucene_index_dir": "./aiknowledge/uploaded_file/indexes/qa",
             "mongo_database_name": "intflex_audit",
             "mongo_collection_name": "qa"
         }

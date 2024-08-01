@@ -7,7 +7,6 @@ Embed chunk data and knowledge_base in the database [Qdrant]
 3. construct Lucene index from chunk data
 """
 
-from pymongo import MongoClient
 from datetime import datetime
 import json
 import os
@@ -109,7 +108,7 @@ def construct_lucene_index(
         mongo_database_name: str,
         mongo_collection_name: str,
         document_json_dir: str,
-        index_dir: str = "indexes/lucene-index"
+        index_dir: str = "indexes/chunk_data"
 ) -> None:
     """
     Construct Lucene index from chunk data
@@ -153,7 +152,6 @@ def construct_lucene_index(
               --storeDocvectors \
               --storeRaw"
               )
-
 
 
 def store_chunks_vectors(

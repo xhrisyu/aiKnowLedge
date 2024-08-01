@@ -37,124 +37,52 @@ from docx.oxml.table import CT_Tbl
 from docx.table import _Cell, Table, _Row
 from docx.text.paragraph import Paragraph
 
-
 from .tools import get_file_name
 
 SUPPORTED_IMAGE_TYPES = ['png', 'jpeg']
 
 
 def docx2markdown(
-    docx_file_abs_path: str,
-    output_dir: str
+        docx_file_abs_path: str,
+        output_dir: str
 ):
-    def extract_and_save_images(markdown_text: str, root_output_dir: str, file_name: str):
-
-        # Create output folder
-        image_output_dir = os.path.join(root_output_dir, "image")
-        Path(root_output_dir).mkdir(parents=True, exist_ok=True)
-        Path(image_output_dir).mkdir(parents=True, exist_ok=True)
-
-        # Using Regular Expression to match base64 image data
-        image_pattern = re.compile(r'(["(])data:image/(png|jpeg|x-emf);base64,([^")]+)([")])')
-        matches = image_pattern.findall(markdown_text)
-
-        # Process each matches
-        for i, (quote_start, image_type, base64_data, quote_end) in enumerate(matches):
-            # Decode base64 image
-            image_data = base64.b64decode(base64_data)
-
-            # Get image file name & save image
-            image_file_path = f"{image_output_dir}/image_{i}.{image_type}"
-            with open(image_file_path, "wb") as file:
-                file.write(image_data)
-
-            # Generate the relative path
-            image_file_relative_path = f"./image/image_{i}.{image_type}"
-
-            # Replace base64 image with file path in markdown
-            markdown_text = markdown_text.replace(
-                f'{quote_start}data:image/{image_type};base64,{base64_data}{quote_end}',
-                f'{quote_start}{image_file_relative_path}{quote_end}'
-            )
-
-        # Process title level
-        # ^ 表示行的开始
-        # \*\* 表示匹配两个星号
-        # (\d+(\.\d+)*\s? .+?) 表示匹配一个或多个数字和小数点，后跟一个可选的空格和任意字符
-        # \*\* 表示匹配结束的两个星号
-        # $ 表示行的结束
-        title_pattern = r'^\s*\**\s*(\d+(\.\d+)*\s?.+?)\s*\**\s*$'
-        markdown_text = re.sub(title_pattern, replace_with_header, markdown_text, flags=re.MULTILINE)
-
-        # Remove <a></a> tags and their contents
-        markdown_text = re.sub(r'<a[^>]*>(.*?)</a>', '', markdown_text)
-
-        # Regular expression to remove 'alt="..."' attributes from <img> tags
-        markdown_text = re.sub(r'(<img[^>]*?)\s*alt="[^"]*"([^>]*>)', r'\1\2', markdown_text)
-
-        # Convert html tags to Markdown format
-        markdown_text = convert_html_table_to_pipe_table(markdown_text)
-
-        # Regular expression to remove tags but keep the text inside them
-        markdown_text = iteratively_unwrap_tags_with_regex(markdown_text,
-                                                           tags_to_unwrap=['p', 'strong', 'tbody', 'tr', 'td', 'th',
-                                                                           'li'])
-
-        # Replace img tag with Markdown format
-        markdown_text = replace_img_tags(markdown_text)
-
-        # Remove <ol> <ul> with text and add new line
-        markdown_text = remove_tags_with_new_line(markdown_text, tags_to_unwrap=['ol', 'ul'])
-
-        # Remove void tag
-        markdown_text = remove_empty_tags(markdown_text)
-
-        # Replace all the blank
-        markdown_text = clean_text(markdown_text)
-
-        # Save markdown file
-        with open(os.path.join(root_output_dir, f"{file_name}.md"), "w", encoding="utf-8") as file:
-            file.write(markdown_text)
-
     def get_markdown_from_command(command):
         command_result = subprocess.run(command, shell=True, capture_output=True, text=True)
         if command_result.returncode != 0:
             raise Exception(f"Command failed: {command_result.stderr}")
         return command_result.stdout
 
-    def clean_text(text):
-        text = re.sub(r'\n+', '\n', text)  # 替换多个连续换行为一个换行
-        text = re.sub(r' +', ' ', text)  # 替换多个连续空格为一个空格
-        return text
+    def convert_to_markdown_header(input_string: str) -> str:
+        def replace_with_header(_match):
+            header = _match.group(0).strip()
+            header_no = _match.group(1).strip()
+            header_text = _match.group(3).strip()
 
-    def replace_with_header(match):
-        # Get the number of the header
-        header_text = match.group(1).strip()
-        # print(">", header_text)
+            # Check if the header contains any of the following punctuation
+            check_items = [",", "，", "。", ";", "；"]
+            if any(item in header for item in check_items):
+                return header
+            if ":" in header[:-1] or "：" in header[:-1]:
+                return header
 
-        # Check if the header contains any of the following punctuation
-        check_items = [",", "，", "。", ";", "；"]
-        if any(item in header_text for item in check_items):
-            return match.group(0)
-        if ":" in header_text[:-1] or "：" in header_text[:-1]:
-            return match.group(0)
+            # Check if the header is too long
+            if len(header) >= 20:
+                return header
 
-        # Check if the header is too long
-        if len(header_text) >= 20:
-            return match.group(0)
+            # Get the header level
+            numbers = re.findall(r'\d+', header_no)
+            if len(numbers) <= 3:  # Header 1/2/3
+                header_level = len(numbers) * '#'
+            else:  # No change for other headers
+                return header
 
-        # Get the header level
-        numbers = re.findall(r'\d+', header_text)
-        if len(numbers) == 1:
-            header_level = '#'  # Header 1
-        elif len(numbers) == 2:
-            header_level = '#' * 2  # Header 2
-        else:
-            return match.group(0)  # No change for other headers
+            return f"\n{header_level} {header_text}\n"
 
-        return f"\n{header_level} {header_text}\n"
+        title_pattern = r'^\s*\**\s*(\d+(\.\d+)*\.?)\s*\**\s*(.+?)\s*\**\s*$'
 
-    def convert_html_table_to_pipe_table(html_str: str):
+        return re.sub(title_pattern, replace_with_header, input_string, flags=re.MULTILINE)
+
+    def convert_html_table_to_markdown_pipe_table(html_str: str) -> str:
         # Parse the HTML using BeautifulSoup
         _soup = BeautifulSoup(html_str, 'html.parser')
 
@@ -169,19 +97,37 @@ def docx2markdown(
         # Find the all table
         tables = _soup.find_all('table')
 
+        # for table in tables:
+        #     markdown_table = []
+        # 
+        #     # Process table headers
+        #     headers = table.find('tr').find_all('th')
+        #     header_row = '| ' + ' | '.join(header.get_text(strip=True) for header in headers) + ' |'
+        #     markdown_table.append(header_row)
+        #     markdown_table.append('|' + ' --- |' * len(headers))
+        # 
+        #     # Process table rows
+        #     for _row in table.find_all('tr')[1:]:  # skip the header row
+        #         cols = _row.find_all(['td', 'th'])  # can be 'td' or 'th' if the data rows use 'th'
+        #         row_text = '| ' + ' | '.join(col.get_text(strip=True) for col in cols) + ' |'
+        #         markdown_table.append(row_text)
+        # 
+        #     markdown_table_string = "\n".join(markdown_table)
+        #     markdown_table_string_nav = NavigableString(markdown_table_string)
+        #     table.replace_with("\n\n" + markdown_table_string_nav + "\n\n")
         for table in tables:
             markdown_table = []
 
             # Process table headers
             headers = table.find('tr').find_all('th')
-            header_row = '| ' + ' | '.join(header.get_text(strip=True) for header in headers) + ' |'
+            header_row = '|' + '|'.join(header.get_text(strip=True) for header in headers) + '|'
             markdown_table.append(header_row)
-            markdown_table.append('|' + ' --- |' * len(headers))
+            markdown_table.append('|' + '---|' * len(headers))
 
             # Process table rows
             for _row in table.find_all('tr')[1:]:  # skip the header row
                 cols = _row.find_all(['td', 'th'])  # can be 'td' or 'th' if the data rows use 'th'
-                row_text = '| ' + ' | '.join(col.get_text(strip=True) for col in cols) + ' |'
+                row_text = '|' + '|'.join(col.get_text(strip=True) for col in cols) + '|'
                 markdown_table.append(row_text)
 
             markdown_table_string = "\n".join(markdown_table)
@@ -190,7 +136,7 @@ def docx2markdown(
 
         return str(_soup)
 
-    def remove_empty_tags(html_str):
+    def remove_empty_tags(html_str) -> str:
         _soup = BeautifulSoup(html_str, 'html.parser')
 
         # Iterate over all tags
@@ -202,6 +148,13 @@ def docx2markdown(
                 tag.decompose()  # Remove the tag from the soup
 
         return str(_soup)
+
+    def remove_tags_with_new_line(html_str, tags_to_unwrap: list[str]) -> str:
+        replaced_str = html_str
+        for tag in tags_to_unwrap:
+            replaced_str = replaced_str.replace(f"<{tag}>", "\n\n")
+            replaced_str = replaced_str.replace(f"</{tag}>", "\n\n")
+        return replaced_str
 
     def replace_img_tags(html_str: str) -> str:
 
@@ -231,12 +184,70 @@ def docx2markdown(
 
         return html_str
 
-    def remove_tags_with_new_line(html_str, tags_to_unwrap: list[str]) -> str:
-        replaced_str = html_str
-        for tag in tags_to_unwrap:
-            replaced_str = replaced_str.replace(f"<{tag}>", "\n\n")
-            replaced_str = replaced_str.replace(f"</{tag}>", "\n")
-        return replaced_str
+    def clean_text(input_string: str) -> str:
+        input_string = re.sub(r'\n{3,}', '\n\n', input_string)  # 替换多个连续换行(>=3)为2个换行
+        input_string = re.sub(r' +', ' ', input_string)  # 替换多个连续空格为1个空格
+        return input_string
+
+    def extract_and_save_images(markdown_text: str, root_output_dir: str, file_name: str):
+
+        # Match base64 image string
+        # Define image output folder
+        image_output_dir = os.path.join(root_output_dir, "image")
+        Path(root_output_dir).mkdir(parents=True, exist_ok=True)
+        Path(image_output_dir).mkdir(parents=True, exist_ok=True)
+
+        image_pattern = re.compile(r'(["(])data:image/(png|jpeg|x-emf);base64,([^")]+)([")])')
+        image_matches = image_pattern.findall(markdown_text)
+
+        # Process each image matches
+        for i, (quote_start, image_type, base64_data, quote_end) in enumerate(image_matches):
+            image_data = base64.b64decode(base64_data)  # Decode base64 image
+
+            image_file_path = f"{image_output_dir}/image_{i}.{image_type}"
+            image_file_relative_path = f"./image/image_{i}.{image_type}"
+
+            with open(image_file_path, "wb") as file:
+                file.write(image_data)
+
+            markdown_text = markdown_text.replace(
+                f'{quote_start}data:image/{image_type};base64,{base64_data}{quote_end}',
+                f'{quote_start}{image_file_relative_path}{quote_end}'
+            )
+
+        # Process title level
+        markdown_text = convert_to_markdown_header(markdown_text)
+
+        # Replace img tag with Markdown format
+        markdown_text = replace_img_tags(markdown_text)
+
+        # Convert html tags to Markdown format
+        markdown_text = convert_html_table_to_markdown_pipe_table(markdown_text)
+
+        # Regular expression to remove tags but keep the text inside them
+        markdown_text = iteratively_unwrap_tags_with_regex(
+            markdown_text,
+            tags_to_unwrap=['p', 'strong', 'tbody', 'tr', 'td', 'th', 'li']
+        )
+
+        # Remove <a></a> tags and their contents
+        markdown_text = re.sub(r'<a[^>]*>(.*?)</a>', '', markdown_text)
+
+        # Regular expression to remove 'alt="..."' attributes from <img> tags
+        markdown_text = re.sub(r'(<img[^>]*?)\s*alt="[^"]*"([^>]*>)', r'\1\2', markdown_text)
+
+        # Remove <ol></ol> <ul></ul> with text and add new line
+        markdown_text = remove_tags_with_new_line(markdown_text, tags_to_unwrap=['ol', 'ul'])
+
+        # Remove void tag
+        markdown_text = remove_empty_tags(markdown_text)
+
+        # Replace multiple spaces/newlines
+        markdown_text = clean_text(markdown_text)
+
+        # Save markdown file
+        with open(os.path.join(root_output_dir, f"{file_name}.md"), "w", encoding="utf-8") as file:
+            file.write(markdown_text)
 
     # Convert DOCX to Markdown
     w2m_command = f'source ~/.bash_profile && w2m "{docx_file_abs_path}"'
@@ -503,4 +514,3 @@ class ExamPaperProcessor:
 
             with open(f"{output_directory_path}/{output_file_name}.json", "w") as json_file:
                 json.dump(json_data, json_file, ensure_ascii=False, indent=4)
-
