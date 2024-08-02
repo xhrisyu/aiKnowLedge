@@ -9,6 +9,7 @@ import streamlit as st
 from streamlit_float import float_init, float_css_helper, float_parent
 
 from aiknowledge.config import app_config
+from aiknowledge.config.log_config import setup_logging
 from aiknowledge.llm import OpenAILLM
 from aiknowledge.db import KBQdrantClient, KBMongoClient
 from aiknowledge.rag.retriever.bm25 import BM25
@@ -17,6 +18,10 @@ from aiknowledge.rag.query_analysis.query_analysis import query_analysis_pipelin
 from aiknowledge.webui.constants import LUCENE_INDEX_DIR_INTFLEX_AUDIT_CHUNK_DATA
 from aiknowledge.rag.retrieval_augmentation import retrieval_augmentation_pipeline
 from aiknowledge.rag.context_prompt import format_context_prompt, format_qa_history_prompt
+
+
+logger = setup_logging()
+
 
 vector_search_params = {
     "chunk_data": {
@@ -78,6 +83,7 @@ def get_bm25_retriever():
 
 
 def chatbot_page():
+
     # Sidebar (Settings)
     with st.sidebar:
         with st.expander("⚙️ 检索设置", expanded=True):
@@ -134,6 +140,9 @@ def chatbot_page():
         with st.chat_message("user"):
             st.markdown(user_input)
 
+        logger.info(f"User Input: {user_input}")
+        logger.info(f"Time: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}")
+
         ###############################################
         # Query Decomposition & Entity Recognition
         ###############################################
@@ -141,7 +150,7 @@ def chatbot_page():
             time1 = time.time()
             query_analysis_list = query_analysis_pipeline(user_input, llm_client)
             time2 = time.time()
-            print(f"Query analysis time: {time2 - time1}")
+            logger.info(f"Query analysis time: {time2 - time1}")
 
         ###############################################
         # Retrieve Documents for Each Query
@@ -160,7 +169,13 @@ def chatbot_page():
                 top_k=top_k
             )
             time2 = time.time()
-            print(f"Retrieve documents time: {time2 - time1}")
+            logger.info(f"Retrieve documents time: {time2 - time1}")
+            retrieved_log_str = ""
+            for no_query in range(len(query_analysis_list)):
+                retrieved_log_str += f'\t> Query {no_query + 1} | {query_analysis_list[no_query]["query"]} | {" ".join(query_analysis_list[no_query]["entity"])}\n'
+                for reranking_payload in reranking_payloads_list[no_query]:
+                    retrieved_log_str += f'\t\t>> {reranking_payload["doc_name"]} - {reranking_payload["chunk_seq"]}\n'
+            logger.info(f"Retrieved Documents:\n{retrieved_log_str}")
 
         ###############################################
         # Display Retrieve Documents
@@ -209,7 +224,10 @@ def chatbot_page():
                 ai_response = st.write_stream(response_generator)
                 ai_response_token_usage = llm_client.stream_chat_token_usage
                 time2 = time.time()
-                print(f"Generate AI response time: {time2 - time1}\n")
+                logger.info(f"LLM response time: {time2 - time1}\n")
+                ai_response_log_str = "\t> " + ai_response.replace("\n", "\n\t> ")
+                logger.info(f"LLM response:\n{ai_response_log_str}")
 
             st.session_state.messages.append({"role": "assistant", "content": ai_response})
 
+    logger.info("=" * 50)

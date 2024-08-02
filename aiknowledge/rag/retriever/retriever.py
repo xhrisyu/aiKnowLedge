@@ -56,7 +56,7 @@ def get_chunk_payload_task(
 
 
 def vector_search(
-        embedded_query_input: List[float],
+        embedded_query: List[float],
         vector_db_client: KBQdrantClient,
         vector_collection_name: str,
         mongo_client: KBMongoClient,
@@ -67,7 +67,7 @@ def vector_search(
     Format the vector retrieved payloads by adding the document name, chunk sequence, previous content, content, next content
     Using ThreadPoolExecutor to process the retrieve payloads in parallel.
 
-    :param embedded_query_input: The embedded query input, list of float
+    :param embedded_query: The embedded query input, list of float
     :param vector_db_client: Vector database client
     :param vector_collection_name: The vector collection name
     :param mongo_client: The mongo client
@@ -100,7 +100,7 @@ def vector_search(
     with vector_search_lock:
         vector_db_client.checkout_collection(vector_collection_name)
         retrieve_payloads = vector_db_client.retrieve_similar_vectors_simply(
-            query_vector=embedded_query_input,
+            query_vector=embedded_query,
             top_k=top_k,
         )
 
@@ -129,7 +129,7 @@ def vector_search(
 
 
 def bm25_search(
-        query_input: str,
+        query: str,
         bm25_client: BM25,
         index_dir: str,
         mongo_client: KBMongoClient,
@@ -140,7 +140,7 @@ def bm25_search(
     Format the keyword retrieved payloads by adding the document name, chunk sequence, previous content, content, next content
     Using ThreadPoolExecutor to process the retrieve payloads in parallel.
 
-    :param query_input: The query input, either a string or an embedded vector list
+    :param query: The query input, either a string or an embedded vector list
     :param bm25_client: BM25 client
     :param index_dir: The bm25 index name
     :param mongo_client: The mongo client
@@ -173,7 +173,7 @@ def bm25_search(
     with bm25_search_lock:
         bm25_client.checkout_index(index_dir)
         retrieve_payloads = bm25_client.search(
-            query=query_input,
+            query=query,
             top_k=top_k
         )
 
@@ -220,7 +220,8 @@ def hybrid_search(
 
 
 def retrieve_parallel(
-        user_query: str,
+        query_no: int,
+        query: str,
         entity_list: List[str],
         llm_client: OpenAILLM,
         mongo_client: KBMongoClient,
@@ -230,7 +231,7 @@ def retrieve_parallel(
         vector_search_params: Dict[str, Any],
         keyword_search_params: Dict[str, Any],
         top_k: int,
-) -> Tuple[List[Dict], List[Dict], List[Dict], List[Dict], List[Dict], List[Dict]]:
+) -> Tuple[int, List[Dict], List[Dict]]:
     """
     `vector_search_params` structure:
     {
@@ -262,7 +263,7 @@ def retrieve_parallel(
     """
 
     # Embedding the user query
-    embedding_response = llm_client.get_text_embedding(text=user_query)
+    embedding_response = llm_client.get_text_embedding(text=query)
     embedding_user_question = embedding_response.content
     # Concatenate the entity list to form the entity query
     user_question_entity_str = " ".join(entity_list)
@@ -310,13 +311,13 @@ def retrieve_parallel(
     ###############################################
     with ThreadPoolExecutor(max_workers=2) as executor:
         future_reranking_1 = executor.submit(hybrid_search,
-                                             user_query,
+                                             query,
                                              vector_retrieve_payloads,
                                              keyword_retrieve_payloads,
                                              hybrid_retriever,
                                              top_k)
         future_reranking_2 = executor.submit(hybrid_search,
-                                             user_query,
+                                             query,
                                              qa_vector_retrieve_payloads,
                                              qa_keyword_retrieve_payloads,
                                              hybrid_retriever,
@@ -333,4 +334,4 @@ def retrieve_parallel(
             print(f"Error in future_reranking_2: {e}")
             reranking_item_list_qa = qa_vector_retrieve_payloads + qa_keyword_retrieve_payloads
 
-    return vector_retrieve_payloads, qa_vector_retrieve_payloads, keyword_retrieve_payloads, qa_keyword_retrieve_payloads, reranking_item_list, reranking_item_list_qa
+    return query_no, reranking_item_list, reranking_item_list_qa

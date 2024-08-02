@@ -33,13 +33,31 @@ def retrieval_augmentation_pipeline(
     :param keyword_search_params:
     :param top_k:
     :return: reranking payload list
+    [
+        # query 1
+        [
+            {
+                "score": 0.1,
+                "chunk_id": "",
+                "doc_name": "",
+                "chunk_seq": 1,
+                "pre_content": "",
+                "content": "",
+                "next_content": "",
+            },
+            ...
+        ],
+        # query 2
+        [], ...
+    ],
+    [...]
     """
 
     reranking_payloads_list, qa_reranking_payloads_list = [], []
 
     with ThreadPoolExecutor() as executor:
         futures = []
-        for query_analysis in query_analysis_list:
+        for query_no, query_analysis in enumerate(query_analysis_list):
             user_query_type, user_query, entity_list = query_analysis["type"], query_analysis["query"], query_analysis["entity"]
 
             # Skip casual query
@@ -48,7 +66,8 @@ def retrieval_augmentation_pipeline(
 
             futures.append(
                 executor.submit(retrieve_parallel,
-                                user_query=user_query,
+                                query_no=query_no,
+                                query=user_query,
                                 entity_list=entity_list,
                                 llm_client=llm_client,
                                 mongo_client=mongo_client,
@@ -61,8 +80,11 @@ def retrieval_augmentation_pipeline(
             )
 
         for future in as_completed(futures):
-            vector_retrieve_payloads, qa_vector_retrieve_payloads, keyword_retrieve_payloads, qa_keyword_retrieve_payloads, reranking_payloads, qa_reranking_payloads = future.result()
-            reranking_payloads_list.append(reranking_payloads)
-            qa_reranking_payloads_list.append(qa_reranking_payloads)
+            # Considering that the processed result may not be in order, we need to store the query_no
+            query_no, reranking_payloads, qa_reranking_payloads = future.result()
+
+            # Insert the result into the corresponding position
+            reranking_payloads_list.insert(query_no, reranking_payloads)
+            qa_reranking_payloads_list.insert(query_no, qa_reranking_payloads)
 
     return reranking_payloads_list, qa_reranking_payloads_list
