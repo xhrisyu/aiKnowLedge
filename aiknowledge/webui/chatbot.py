@@ -97,7 +97,7 @@ def chatbot_page():
             # is_stream = st.toggle(label="流式输出", value=True)
             # chat_history_len = st.number_input(label="Chat History Length", min_value=0, max_value=20, value=0, step=2, disabled=True)
             # token_and_time_cost_caption = st.toggle(label="显示耗时&用量", value=False)
-            word_limit_mode = st.radio("回答模式", ["详细回答", "简短回答"], index=0, horizontal=True)
+            word_limit_mode = st.radio("回答模式", ["详细回答", "精炼回答"], index=0, horizontal=True)
 
     # Main Area: Chatbot & Retriever Panel
     col1, gap, col2 = st.columns([3, 0.01, 2])
@@ -178,30 +178,6 @@ def chatbot_page():
             logger.info(f"Retrieved Documents:\n{retrieved_log_str}")
 
         ###############################################
-        # Display Retrieve Documents
-        ###############################################
-        with retriever_container:
-            for no_query, query_analysis in enumerate(query_analysis_list):
-                user_query_type, user_query, entity_list = query_analysis["type"], query_analysis["query"], query_analysis["entity"]
-                st.markdown(f'**问题{no_query + 1}**: :orange[{user_query}]')
-                if user_query_type == QueryType.CASUAL:
-                    st.markdown("**问题类型**: :orange[日常聊天✅]")
-                elif user_query_type == QueryType.ENTERPRISE:
-                    st.markdown("**问题类型**: :orange[企业知识✅]")
-                st.markdown(f'**关键词**: :orange[{entity_list}]')
-
-                if user_query_type == 0:
-                    continue
-
-                retrieved_document_expander = st.expander("文档检索结果", expanded=False)
-                for no, doc in enumerate(reranking_payloads_list[no_query]):
-                    retrieved_document_expander.markdown(f':orange[**文档来源{no + 1}: {doc["doc_name"]}**]')
-                    retrieved_document_expander.markdown(doc["content"])
-                    retrieved_document_expander.divider()
-
-                st.divider()
-
-        ###############################################
         # Generate LLM Response
         ###############################################
         # AI Message
@@ -212,7 +188,7 @@ def chatbot_page():
 
             with st.spinner("AI思考中..."):
                 time1 = time.time()
-                word_limit_num = 50 if word_limit_mode == "简短回答" else None
+                word_limit_num = 100 if word_limit_mode == "精炼回答" else None
                 response_generator = llm_client.stream_chat_response(
                     user_question=user_input,
                     context=prompt_context,
@@ -231,3 +207,27 @@ def chatbot_page():
             st.session_state.messages.append({"role": "assistant", "content": ai_response})
 
     logger.info("=" * 50)
+
+    ###############################################
+    # Display Retrieve Documents
+    ###############################################
+    with retriever_container:
+        for no_query, query_analysis in enumerate(query_analysis_list):
+            user_query_type, user_query, entity_list = query_analysis["type"], query_analysis["query"], query_analysis["entity"]
+            st.markdown(f'**问题{no_query + 1}**: :orange[{user_query}]')
+            if user_query_type == QueryType.CASUAL:
+                st.markdown("**问题类型**: :orange[日常聊天✅]")
+            elif user_query_type == QueryType.ENTERPRISE:
+                st.markdown("**问题类型**: :orange[企业知识✅]")
+            st.markdown(f'**关键词**: :orange[{entity_list}]')
+
+            if user_query_type == 0:
+                continue
+
+            retrieved_document_expander = st.expander("文档检索结果", expanded=False)
+            for no, doc in enumerate(reranking_payloads_list[no_query]):
+                retrieved_document_expander.write(f':orange[**文档来源{no + 1}: {doc["doc_name"]}**]')
+                retrieved_document_expander.write(doc["content"][0:200] + "......")
+                retrieved_document_expander.divider()
+
+            st.divider()

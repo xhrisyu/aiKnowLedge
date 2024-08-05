@@ -126,7 +126,7 @@ If only need to extract 1 knowledge point, please return the knowledge point in 
 
 GENERATE_QUESTION_PROMPT = """
 You are now in charge of employee training.
-Your task is to generate multiple-choice question from the given knowledge point, in order to effectively test whether the employee has mastered this knowledge point.
+Your task is to generate multiple-choice question from the given knowledge point, in order to effectively test_file whether the employee has mastered this knowledge point.
 Here are some rules for generating multiple-choice question that you must follow:
 1. The generated multiple-choice question must be based on the knowledge point.
 2. The multiple-choice question has 4 options in total, including 1 correct option and 3 incorrect options.

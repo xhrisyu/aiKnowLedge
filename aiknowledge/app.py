@@ -45,7 +45,6 @@ def check_password():
         st.error("😕 User not known or password incorrect")
     return False
 
-
 # Page Setting
 st.set_page_config(
     page_title="则成雨林",
@@ -59,6 +58,7 @@ st.set_page_config(
     }
 )
 
+# Sidebar Setting
 with st.sidebar:
     if os.path.exists(os.path.join("webui/src/logo", "aiknow_logo_transparent_2.png")):
         st.image(os.path.join("webui/src/logo", "aiknow_logo_transparent_2.png"))

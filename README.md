@@ -53,7 +53,7 @@ aiKnowLedge 是一个用于管理知识库和问答聊天机器人的项目，�
 
 1. 创建并激活 Conda 环境：
    ```shell
-   conda env create -n aiknowledge python=3.11.4
+   conda env create -n aiknowledge python=3.10
    conda activate aiknowledge
    ```
    
@@ -62,9 +62,13 @@ aiKnowLedge 是一个用于管理知识库和问答聊天机器人的项目，�
    pip install -r requirements.txt
    ```
 
-3. 启动 (Streamlit)：
+3. 启动：
    ```shell
+   # 启动数据库
+   docker compose up -d mongo qdrant
    
+   # 启动streamlit
+   export PYTHONPATH="/<project_root_path>:$PYTHONPATH"
    streamlit run aiknowledeg/app.py --backend.address=127.0.0.1 --backend.port=8501
    ```
 

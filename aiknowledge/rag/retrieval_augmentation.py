@@ -55,7 +55,7 @@ def retrieval_augmentation_pipeline(
 
     reranking_payloads_list, qa_reranking_payloads_list = [], []
 
-    with ThreadPoolExecutor() as executor:
+    with ThreadPoolExecutor(max_workers=2) as executor:
         futures = []
         for query_no, query_analysis in enumerate(query_analysis_list):
             user_query_type, user_query, entity_list = query_analysis["type"], query_analysis["query"], query_analysis["entity"]
