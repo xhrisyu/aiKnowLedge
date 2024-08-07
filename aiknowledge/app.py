@@ -5,7 +5,8 @@ from streamlit_option_menu import option_menu
 import hmac
 
 from aiknowledge.webui.chatbot import chatbot_page
-
+from aiknowledge.utils.tools import convert_md_image_to_base64_format
+from aiknowledge.webui.kb_management import kb_management_page
 
 VERSION = "1.0.0"
 
@@ -72,10 +73,10 @@ with st.sidebar:
         menu_title="",
         # options=["主页", "问答助手", "知识管理", "习题生成"],
         # icons=["house", "robot", "cloud-upload", "clipboard-data", "box"],
-        options=["问答助手", "文件列表"],
-        icons=["robot", "cloud-upload"],
+        options=["使用手册", "问答助手", "文件列表"],
+        icons=["clipboard-data", "robot", "cloud-upload"],
         menu_icon="cast",
-        default_index=0,
+        default_index=1,
     )
 
 if not check_password():
@@ -107,24 +108,25 @@ if selected_item == "问答助手":
     chatbot_page()
 
 if selected_item == "文件列表":
-    file_list_path = os.path.join("aiknowledge/webui/src/", "file_list.txt")
+    file_list_path = os.path.join("frontend/webui/src/", "file_list.txt")
     file_list = []
     with open(file_list_path, "r", encoding="utf-8") as f:
         for line in f:
             file_list.append(line.strip())
     st.table(pd.DataFrame(file_list, columns=["文件列表"]))
 
+if selected_item == "使用手册":
+    user_instruction_path = os.path.join("aiknowledge/webui/src/user_instruction", "user_instruction.md")
+    if os.path.exists(user_instruction_path):
+        # Load markdown source file
+        with open(user_instruction_path, "r", encoding="utf-8") as f:
+            user_instruction = f.read()
+        # Convert the images(displayed in file path format) in markdown into base64 format
+        user_instruction = convert_md_image_to_base64_format(user_instruction)
+        st.markdown(user_instruction)
 
-# if selected_item == "使用手册":
-#     test_instruction_path = os.path.join("aiknowledge/webui/src/test_instruction", "test_instruction.md")
-#     if os.path.exists(test_instruction_path):
-#         with open(test_instruction_path, "r", encoding="utf-8") as f:
-#             test_instruction = f.read()
-#         st.markdown(test_instruction)
-#     print(test_instruction)
+if selected_item == "知识管理":
+    kb_management_page()
 
-# if selected_item == "知识管理":
-#     kb_management_page()
-#
 # if selected_item == "习题生成":
 #     quiz_generator_page()

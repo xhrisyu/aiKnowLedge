@@ -1,3 +1,4 @@
+import base64
 import os
 import re
 from typing import List, Dict
@@ -232,3 +233,43 @@ def remove_overlap(chunk1, chunk2):
             return chunk1[i:]
 
     return chunk1
+
+
+# --------------------------- User Instruction ---------------------------
+def convert_md_image_to_base64_format(
+        markdown_text: str,
+        images_folder: str = "aiknowledge/webui/src/user_instruction"
+) -> str:
+    """
+    Convert the images(displayed in file path format) in markdown into base64 format.
+    For Streamlit UI display (st.markdown() function)
+
+    :param markdown_text: markdown source text
+    :param images_folder: image absolute folder path
+    :return: convertion text
+    """
+
+    # Convert image relative path to absolute path
+    def replace_md_image_path(match):
+        alt_text = match.group(1)
+        old_path = match.group(2)
+        new_path = os.path.join(images_folder, old_path)
+        return f'![{alt_text}]({new_path})'
+
+    markdown_text = re.sub(r"!\[(.*?)\]\((.*?)\)", replace_md_image_path, markdown_text)
+
+    # Read all the image and convert them into base64 format
+    def image_to_base64(match):
+        alt_text = match.group(1)
+        image_path = match.group(2)
+        if os.path.exists(image_path):
+            with open(image_path, "rb") as f:
+                image_data = f.read()
+            base64_data = base64.b64encode(image_data)
+            base64_data_str = base64_data.decode('utf-8')
+            return f'![{alt_text}](data:image/png;base64,{base64_data_str})'
+        return match.group(0)
+
+    markdown_text = re.sub(r"!\[(.*?)\]\((.*?)\)", image_to_base64, markdown_text)
+
+    return markdown_text
