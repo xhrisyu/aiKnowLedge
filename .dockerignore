@@ -43,8 +43,6 @@ COMMAND
 /mongo_storage
 /qdrant_storage
 /logs
-/backend
-/frontend
 /aiknowledge/uploaded_file/document_json
 /aiknowledge/uploaded_file/intflex
 /aiknowledge/uploaded_file/intflex_2
